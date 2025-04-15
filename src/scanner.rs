@@ -103,6 +103,7 @@ impl Scanner {
                 self.scan_location.increment_line(1);
                 None
             }
+            c if c.is_digit(10) => Some(self.number_literal()?),
             c => panic!("Unrecognized character: {}", c),
         };
 
@@ -144,6 +145,20 @@ impl Scanner {
         }
     }
 
+    fn advance_until_and_capture_2(&mut self, matched: fn(char) -> bool) -> Result<String> {
+        let mut index = self.lexeme_current_index;
+        loop {
+            self.end_reached(index)?;
+            if matched(self.char_at(index)) {
+                let res = Ok(String::from(&self.source[self.lexeme_current_index..index]));
+                // The +1 here is so that _eat_ the closing "
+                self.lexeme_current_index = index + 1;
+                return res;
+            }
+            index += 1;
+        }
+    }
+
     fn char_at(&self, index: usize) -> char {
         self.source
             .chars()
@@ -162,5 +177,58 @@ impl Scanner {
     fn string_literal(&mut self) -> Result<Token> {
         let literal = self.advance_until_and_capture('"')?;
         Ok(Token::new(TokenType::String(literal), self.scan_location))
+    }
+
+    fn number_literal(&mut self) -> Result<Token> {
+        todo!()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::iter::zip;
+
+    use super::*;
+
+    #[test]
+    fn smoke_test() {
+        let source = r#"// this is a comment
+            (( )){} // grouping stuff
+            .,;!*+-/=<> <= >= == // operators
+            "string literal" "another one"
+            "#;
+
+        let mut scanner = Scanner::new(source.to_owned());
+        let tokens = scanner.scan_tokens();
+
+        let expected_tokens = vec![
+            Token::new(TokenType::LeftParen, 2.into()),
+            Token::new(TokenType::LeftParen, 2.into()),
+            Token::new(TokenType::RightParen, 2.into()),
+            Token::new(TokenType::RightParen, 2.into()),
+            Token::new(TokenType::LeftBrace, 2.into()),
+            Token::new(TokenType::RightBrace, 2.into()),
+            Token::new(TokenType::Dot, 3.into()),
+            Token::new(TokenType::Comma, 3.into()),
+            Token::new(TokenType::Semicolon, 3.into()),
+            Token::new(TokenType::Bang, 3.into()),
+            Token::new(TokenType::Star, 3.into()),
+            Token::new(TokenType::Plus, 3.into()),
+            Token::new(TokenType::Minus, 3.into()),
+            Token::new(TokenType::Slash, 3.into()),
+            Token::new(TokenType::Equal, 3.into()),
+            Token::new(TokenType::Less, 3.into()),
+            Token::new(TokenType::Greater, 3.into()),
+            Token::new(TokenType::LessEqual, 3.into()),
+            Token::new(TokenType::GreaterEqual, 3.into()),
+            Token::new(TokenType::EqualEqual, 3.into()),
+            Token::new(TokenType::String("string literal".to_owned()), 4.into()),
+            Token::new(TokenType::String("another one".to_owned()), 4.into()),
+        ];
+
+        assert_eq!(tokens.len(), 23);
+        for (t, expected) in zip(tokens, expected_tokens) {
+            assert_eq!(*t, expected);
+        }
     }
 }

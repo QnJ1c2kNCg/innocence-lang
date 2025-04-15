@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub(crate) enum TokenType {
     // Single char tokens
     LeftParen,
@@ -26,7 +26,7 @@ pub(crate) enum TokenType {
     // Literals
     Identifier,
     String(String),
-    Number,
+    Number(f64),
 
     // Keywords
     And,
@@ -48,7 +48,7 @@ pub(crate) enum TokenType {
     Eof,
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub(crate) struct Location {
     line_number: usize,
 }
@@ -57,11 +57,19 @@ impl Location {
     pub(crate) fn new() -> Self {
         Self { line_number: 1 }
     }
+
     pub(crate) fn increment_line(&mut self, amount: usize) {
         self.line_number += amount;
     }
 }
 
+impl From<usize> for Location {
+    fn from(value: usize) -> Self {
+        Self { line_number: value }
+    }
+}
+
+#[derive(PartialEq)]
 pub(crate) struct Token {
     token_type: TokenType,
     location: Location,
