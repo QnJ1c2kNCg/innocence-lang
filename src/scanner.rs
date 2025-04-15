@@ -58,37 +58,37 @@ impl Scanner {
             ';' => Some(Token::new(TokenType::Semicolon, self.scan_location)),
             '*' => Some(Token::new(TokenType::Star, self.scan_location)),
             '!' => {
-                if self.conditional_advance('=') {
+                if self.conditional_advance('=')? {
                     Some(Token::new(TokenType::BangEqual, self.scan_location))
                 } else {
                     Some(Token::new(TokenType::Bang, self.scan_location))
                 }
             }
             '=' => {
-                if self.conditional_advance('=') {
+                if self.conditional_advance('=')? {
                     Some(Token::new(TokenType::EqualEqual, self.scan_location))
                 } else {
                     Some(Token::new(TokenType::Equal, self.scan_location))
                 }
             }
             '<' => {
-                if self.conditional_advance('=') {
+                if self.conditional_advance('=')? {
                     Some(Token::new(TokenType::LessEqual, self.scan_location))
                 } else {
                     Some(Token::new(TokenType::Less, self.scan_location))
                 }
             }
             '>' => {
-                if self.conditional_advance('=') {
+                if self.conditional_advance('=')? {
                     Some(Token::new(TokenType::GreaterEqual, self.scan_location))
                 } else {
                     Some(Token::new(TokenType::Greater, self.scan_location))
                 }
             }
             '/' => {
-                if self.conditional_advance('/') {
+                if self.conditional_advance('/')? {
                     // A comment, we need to advance until the end of line
-                    while !self.conditional_advance('\n') {
+                    while !self.conditional_advance('\n')? {
                         self.lexeme_current_index += 1;
                     }
                     self.scan_location.increment_line(1);
@@ -98,9 +98,9 @@ impl Scanner {
                 }
             }
             ' ' | '\r' | '\t' => None,
+            '"' => Some(self.string_literal()?),
             '\n' => {
                 self.scan_location.increment_line(1);
-                println!("incremented to: {:?}", self.scan_location);
                 None
             }
             c => panic!("Unrecognized character: {}", c),
@@ -110,40 +110,57 @@ impl Scanner {
     }
 
     fn advance(&mut self) -> Result<char> {
-        if self.end_reached() {
-            return Err(ScannerError::EndOfSource);
-        } else {
-            let c = self
-                .source
-                .chars()
-                .nth(self.lexeme_current_index)
-                .expect("`lexeme_current_index` should never be out of bound");
+        self.end_reached(self.lexeme_current_index)?;
+        let c = self.char_at(self.lexeme_current_index);
 
-            self.lexeme_current_index += 1;
-            Ok(c)
-        }
+        self.lexeme_current_index += 1;
+        Ok(c)
     }
 
-    /// Only advances if the `expected` char matches
-    fn conditional_advance(&mut self, expected: char) -> bool {
-        if self.end_reached() {
-            return false;
-        }
-        let c = self
-            .source
-            .chars()
-            .nth(self.lexeme_current_index)
-            .expect("`lexeme_current_index` should never be out of bound");
+    /// Only advances if the `expected` char matches the current index
+    fn conditional_advance(&mut self, expected: char) -> Result<bool> {
+        self.end_reached(self.lexeme_current_index)?;
+        let c = self.char_at(self.lexeme_current_index);
 
         if c == expected {
             self.lexeme_current_index += 1;
-            true
+            Ok(true)
         } else {
-            false
+            Ok(false)
         }
     }
 
-    fn end_reached(&self) -> bool {
-        self.lexeme_current_index >= self.source.len()
+    fn advance_until_and_capture(&mut self, c: char) -> Result<String> {
+        let mut index = self.lexeme_current_index;
+        loop {
+            self.end_reached(index)?;
+            if self.char_at(index) == c {
+                let res = Ok(String::from(&self.source[self.lexeme_current_index..index]));
+                // The +1 here is so that _eat_ the closing "
+                self.lexeme_current_index = index + 1;
+                return res;
+            }
+            index += 1;
+        }
+    }
+
+    fn char_at(&self, index: usize) -> char {
+        self.source
+            .chars()
+            .nth(index)
+            .expect("`lexeme_current_index` should never be out of bound")
+    }
+
+    fn end_reached(&self, index: usize) -> Result<()> {
+        if index >= self.source.len() {
+            Err(ScannerError::EndOfSource)
+        } else {
+            Ok(())
+        }
+    }
+
+    fn string_literal(&mut self) -> Result<Token> {
+        let literal = self.advance_until_and_capture('"')?;
+        Ok(Token::new(TokenType::String(literal), self.scan_location))
     }
 }

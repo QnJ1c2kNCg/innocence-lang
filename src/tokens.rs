@@ -25,7 +25,7 @@ pub(crate) enum TokenType {
 
     // Literals
     Identifier,
-    String,
+    String(String),
     Number,
 
     // Keywords
