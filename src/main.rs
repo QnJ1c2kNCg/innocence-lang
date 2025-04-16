@@ -1,4 +1,4 @@
-mod ast_printer;
+mod ast_stringer;
 mod expressions;
 mod scanner;
 mod tokens;
