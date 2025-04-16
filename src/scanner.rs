@@ -3,8 +3,9 @@ use std::str::FromStr;
 
 type Result<T> = std::result::Result<T, ScannerError>;
 
-enum ScannerError {
+pub(crate) enum ScannerError {
     EndOfSource,
+    NotAKeyword,
 }
 
 pub(crate) struct Scanner {
@@ -35,6 +36,7 @@ impl Scanner {
                     Ok(None) => (),
                     Err(e) => match e {
                         ScannerError::EndOfSource => break,
+                        _ => unreachable!(),
                     },
                 }
             }
@@ -105,6 +107,7 @@ impl Scanner {
                 None
             }
             c if c.is_digit(10) => Some(self.number_literal()?),
+            c if c.is_alphanumeric() => Some(self.identifier()?),
             c => panic!("[{:?}] Unrecognized character: {}", self.scan_location, c),
         };
 
@@ -173,11 +176,22 @@ impl Scanner {
         let literal = self.advance_until_and_capture(self.lexeme_current_index - 1, |c| {
             !(c.is_digit(10) || c == '.')
         })?;
-        self.lexeme_current_index += literal.len();
+        self.lexeme_current_index += literal.len() - 1;
         Ok(Token::new(
             TokenType::Number(f64::from_str(&literal).unwrap()),
             self.scan_location,
         ))
+    }
+
+    fn identifier(&mut self) -> Result<Token> {
+        let literal = self.advance_until_and_capture(self.lexeme_current_index - 1, |c| {
+            !(c.is_alphanumeric() || c == '_')
+        })?;
+        self.lexeme_current_index += literal.len() - 1;
+        // Check if the identifier is actually a keyword
+        let token_type =
+            TokenType::try_from(literal.as_str()).unwrap_or(TokenType::Identifier(literal));
+        Ok(Token::new(token_type, self.scan_location))
     }
 }
 
@@ -194,6 +208,8 @@ mod tests {
             .,;!*+-/=<> <= >= == // operators
             "string literal" "another one"
             123 4.5 67.89 10.0
+            fn struct if else for while
+            an_identifier AnotherOne
             "#;
 
         let mut scanner = Scanner::new(source.to_owned());
@@ -226,7 +242,15 @@ mod tests {
             Token::new(TokenType::Number(4.5), 5.into()),
             Token::new(TokenType::Number(67.89), 5.into()),
             Token::new(TokenType::Number(10.0), 5.into()),
-            Token::new(TokenType::Eof, 5.into()),
+            Token::new(TokenType::Fn, 6.into()),
+            Token::new(TokenType::Struct, 6.into()),
+            Token::new(TokenType::If, 6.into()),
+            Token::new(TokenType::Else, 6.into()),
+            Token::new(TokenType::For, 6.into()),
+            Token::new(TokenType::While, 6.into()),
+            Token::new(TokenType::Identifier("an_identifier".to_owned()), 7.into()),
+            Token::new(TokenType::Identifier("AnotherOne".to_owned()), 7.into()),
+            Token::new(TokenType::Eof, 8.into()),
         ];
 
         dbg!(tokens);

@@ -1,3 +1,5 @@
+use crate::scanner::ScannerError;
+
 #[derive(Debug, PartialEq)]
 pub(crate) enum TokenType {
     // Single char tokens
@@ -24,7 +26,7 @@ pub(crate) enum TokenType {
     LessEqual,
 
     // Literals
-    Identifier,
+    Identifier(String),
     String(String),
     Number(f64),
 
@@ -34,18 +36,43 @@ pub(crate) enum TokenType {
     Struct,
     If,
     Else,
+    For,
+    While,
     False,
     True,
     Fn,
     Nil,
     Print,
     Return,
-    Super,
     This,
     Let,
-    While,
 
     Eof,
+}
+
+impl TryFrom<&str> for TokenType {
+    type Error = ScannerError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "and" => Ok(TokenType::And),
+            "or" => Ok(TokenType::Or),
+            "struct" => Ok(TokenType::Struct),
+            "if" => Ok(TokenType::If),
+            "else" => Ok(TokenType::Else),
+            "for" => Ok(TokenType::For),
+            "while" => Ok(TokenType::While),
+            "true" => Ok(TokenType::True),
+            "false" => Ok(TokenType::False),
+            "fn" => Ok(TokenType::Fn),
+            "nil" => Ok(TokenType::Nil),
+            "print" => Ok(TokenType::Print),
+            "return" => Ok(TokenType::Return),
+            "this" => Ok(TokenType::This),
+            "let" => Ok(TokenType::Let),
+            _ => Err(ScannerError::NotAKeyword),
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
