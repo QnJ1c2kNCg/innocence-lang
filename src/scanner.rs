@@ -1,6 +1,7 @@
 use crate::tokens::{Location, Token, TokenType};
+use std::str::FromStr;
 
-pub(crate) type Result<T> = std::result::Result<T, ScannerError>;
+type Result<T> = std::result::Result<T, ScannerError>;
 
 enum ScannerError {
     EndOfSource,
@@ -104,7 +105,7 @@ impl Scanner {
                 None
             }
             c if c.is_digit(10) => Some(self.number_literal()?),
-            c => panic!("Unrecognized character: {}", c),
+            c => panic!("[{:?}] Unrecognized character: {}", self.scan_location, c),
         };
 
         Ok(token)
@@ -131,29 +132,16 @@ impl Scanner {
         }
     }
 
-    fn advance_until_and_capture(&mut self, c: char) -> Result<String> {
-        let mut index = self.lexeme_current_index;
-        loop {
-            self.end_reached(index)?;
-            if self.char_at(index) == c {
-                let res = Ok(String::from(&self.source[self.lexeme_current_index..index]));
-                // The +1 here is so that _eat_ the closing "
-                self.lexeme_current_index = index + 1;
-                return res;
-            }
-            index += 1;
-        }
-    }
-
-    fn advance_until_and_capture_2(&mut self, matched: fn(char) -> bool) -> Result<String> {
-        let mut index = self.lexeme_current_index;
+    fn advance_until_and_capture(
+        &self,
+        start_index: usize,
+        matched: fn(char) -> bool,
+    ) -> Result<String> {
+        let mut index = start_index;
         loop {
             self.end_reached(index)?;
             if matched(self.char_at(index)) {
-                let res = Ok(String::from(&self.source[self.lexeme_current_index..index]));
-                // The +1 here is so that _eat_ the closing "
-                self.lexeme_current_index = index + 1;
-                return res;
+                return Ok(String::from(&self.source[start_index..index]));
             }
             index += 1;
         }
@@ -175,12 +163,21 @@ impl Scanner {
     }
 
     fn string_literal(&mut self) -> Result<Token> {
-        let literal = self.advance_until_and_capture('"')?;
+        let literal = self.advance_until_and_capture(self.lexeme_current_index, |c| c == '"')?;
+        // The +1 here is so that _eat_ the closing "
+        self.lexeme_current_index += literal.len() + 1;
         Ok(Token::new(TokenType::String(literal), self.scan_location))
     }
 
     fn number_literal(&mut self) -> Result<Token> {
-        todo!()
+        let literal = self.advance_until_and_capture(self.lexeme_current_index - 1, |c| {
+            !(c.is_digit(10) || c == '.')
+        })?;
+        self.lexeme_current_index += literal.len();
+        Ok(Token::new(
+            TokenType::Number(f64::from_str(&literal).unwrap()),
+            self.scan_location,
+        ))
     }
 }
 
@@ -196,6 +193,7 @@ mod tests {
             (( )){} // grouping stuff
             .,;!*+-/=<> <= >= == // operators
             "string literal" "another one"
+            123 4.5 67.89 10.0
             "#;
 
         let mut scanner = Scanner::new(source.to_owned());
@@ -224,9 +222,15 @@ mod tests {
             Token::new(TokenType::EqualEqual, 3.into()),
             Token::new(TokenType::String("string literal".to_owned()), 4.into()),
             Token::new(TokenType::String("another one".to_owned()), 4.into()),
+            Token::new(TokenType::Number(123f64), 5.into()),
+            Token::new(TokenType::Number(4.5), 5.into()),
+            Token::new(TokenType::Number(67.89), 5.into()),
+            Token::new(TokenType::Number(10.0), 5.into()),
+            Token::new(TokenType::Eof, 5.into()),
         ];
 
-        assert_eq!(tokens.len(), 23);
+        dbg!(tokens);
+        assert_eq!(tokens.len(), expected_tokens.len());
         for (t, expected) in zip(tokens, expected_tokens) {
             assert_eq!(*t, expected);
         }
