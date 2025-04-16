@@ -10,7 +10,6 @@ pub(crate) enum ScannerError {
 
 pub(crate) struct Scanner {
     source: String,
-    lexeme_start_index: usize,
     lexeme_current_index: usize,
     scan_location: Location,
     tokens: Option<Vec<Token>>,
@@ -20,7 +19,6 @@ impl Scanner {
     pub(crate) fn new(source: String) -> Scanner {
         Scanner {
             source,
-            lexeme_start_index: 0,
             lexeme_current_index: 0,
             scan_location: Location::new(),
             tokens: None,
@@ -253,7 +251,6 @@ mod tests {
             Token::new(TokenType::Eof, 8.into()),
         ];
 
-        dbg!(tokens);
         assert_eq!(tokens.len(), expected_tokens.len());
         for (t, expected) in zip(tokens, expected_tokens) {
             assert_eq!(*t, expected);

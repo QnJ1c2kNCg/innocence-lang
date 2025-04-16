@@ -115,4 +115,47 @@ impl Token {
             location,
         }
     }
+
+    pub(crate) fn lexeme(&self) -> String {
+        match self.token_type {
+            TokenType::LeftParen => todo!(),
+            TokenType::RightParen => todo!(),
+            TokenType::LeftBrace => todo!(),
+            TokenType::RightBrace => todo!(),
+            TokenType::Comma => todo!(),
+            TokenType::Dot => todo!(),
+            TokenType::Minus => "-".to_owned(),
+            TokenType::Plus => todo!(),
+            TokenType::Semicolon => todo!(),
+            TokenType::Slash => todo!(),
+            TokenType::Star => "*".to_owned(),
+            TokenType::Bang => todo!(),
+            TokenType::BangEqual => todo!(),
+            TokenType::Equal => todo!(),
+            TokenType::EqualEqual => todo!(),
+            TokenType::Greater => todo!(),
+            TokenType::GreaterEqual => todo!(),
+            TokenType::Less => todo!(),
+            TokenType::LessEqual => todo!(),
+            TokenType::Identifier(_) => todo!(),
+            TokenType::String(_) => todo!(),
+            TokenType::Number(number) => number.to_string(),
+            TokenType::And => todo!(),
+            TokenType::Or => todo!(),
+            TokenType::Struct => todo!(),
+            TokenType::If => todo!(),
+            TokenType::Else => todo!(),
+            TokenType::For => todo!(),
+            TokenType::While => todo!(),
+            TokenType::False => todo!(),
+            TokenType::True => todo!(),
+            TokenType::Fn => todo!(),
+            TokenType::Nil => todo!(),
+            TokenType::Print => todo!(),
+            TokenType::Return => todo!(),
+            TokenType::This => todo!(),
+            TokenType::Let => todo!(),
+            TokenType::Eof => todo!(),
+        }
+    }
 }
