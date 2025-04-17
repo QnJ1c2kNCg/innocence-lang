@@ -1,6 +1,6 @@
 use crate::scanner::ScannerError;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone)]
 pub(crate) enum TokenType {
     // Single char tokens
     LeftParen,
@@ -50,6 +50,53 @@ pub(crate) enum TokenType {
     Eof,
 }
 
+// XXX: Maybe this is dangerous?
+impl PartialEq for TokenType {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (TokenType::LeftParen, TokenType::LeftParen)
+            | (TokenType::RightParen, TokenType::RightParen)
+            | (TokenType::LeftBrace, TokenType::LeftBrace)
+            | (TokenType::RightBrace, TokenType::RightBrace)
+            | (TokenType::Comma, TokenType::Comma)
+            | (TokenType::Dot, TokenType::Dot)
+            | (TokenType::Minus, TokenType::Minus)
+            | (TokenType::Plus, TokenType::Plus)
+            | (TokenType::Semicolon, TokenType::Semicolon)
+            | (TokenType::Slash, TokenType::Slash)
+            | (TokenType::Star, TokenType::Star)
+            | (TokenType::Bang, TokenType::Bang)
+            | (TokenType::BangEqual, TokenType::BangEqual)
+            | (TokenType::Equal, TokenType::Equal)
+            | (TokenType::EqualEqual, TokenType::EqualEqual)
+            | (TokenType::Greater, TokenType::Greater)
+            | (TokenType::GreaterEqual, TokenType::GreaterEqual)
+            | (TokenType::Less, TokenType::Less)
+            | (TokenType::LessEqual, TokenType::LessEqual)
+            | (TokenType::And, TokenType::And)
+            | (TokenType::Or, TokenType::Or)
+            | (TokenType::Struct, TokenType::Struct)
+            | (TokenType::If, TokenType::If)
+            | (TokenType::Else, TokenType::Else)
+            | (TokenType::For, TokenType::For)
+            | (TokenType::While, TokenType::While)
+            | (TokenType::False, TokenType::False)
+            | (TokenType::True, TokenType::True)
+            | (TokenType::Fn, TokenType::Fn)
+            | (TokenType::Nil, TokenType::Nil)
+            | (TokenType::Print, TokenType::Print)
+            | (TokenType::Return, TokenType::Return)
+            | (TokenType::This, TokenType::This)
+            | (TokenType::Let, TokenType::Let)
+            | (TokenType::Eof, TokenType::Eof)
+            | (TokenType::Identifier(_), TokenType::Identifier(_))
+            | (TokenType::String(_), TokenType::String(_))
+            | (TokenType::Number(_), TokenType::Number(_)) => true,
+            _ => false,
+        }
+    }
+}
+
 impl TryFrom<&str> for TokenType {
     type Error = ScannerError;
 
@@ -96,9 +143,9 @@ impl From<usize> for Location {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub(crate) struct Token {
-    token_type: TokenType,
+    pub(crate) token_type: TokenType,
     location: Location,
 }
 

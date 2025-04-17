@@ -1,5 +1,6 @@
 mod ast_stringer;
 mod expressions;
+mod parser;
 mod scanner;
 mod tokens;
 
