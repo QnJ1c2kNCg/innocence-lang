@@ -1,11 +1,14 @@
 mod ast_stringer;
 mod expressions;
+mod logger;
 mod parser;
 mod scanner;
 mod tokens;
 
 use std::{env, io::Write};
 
+use ast_stringer::AstStringer;
+use parser::Parser;
 use scanner::Scanner;
 
 fn main() {
@@ -37,5 +40,13 @@ fn run_prompt() {
 
 fn run(source: String) {
     let mut scanner = Scanner::new(source);
-    println!("{:?}", scanner.scan_tokens());
+    let tokens = scanner.scan_tokens();
+    let parser = Parser::new(tokens);
+    let expression = parser.parse().unwrap();
+
+    let mut ast_stringer = AstStringer {};
+
+    println!("{}", ast_stringer.stringify(&expression));
+
+    // println!("{:?}", scanner.scan_tokens());
 }

@@ -1,9 +1,9 @@
 use crate::expressions::{Expression, ExpressionVisitor};
 
-struct AstStringer {}
+pub(crate) struct AstStringer {}
 
 impl AstStringer {
-    fn stringify(&mut self, expr: &Expression) -> String {
+    pub(crate) fn stringify(&mut self, expr: &Expression) -> String {
         expr.accept(self as &mut dyn ExpressionVisitor<String>)
     }
 
