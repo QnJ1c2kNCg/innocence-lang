@@ -47,6 +47,4 @@ fn run(source: String) {
     let mut ast_stringer = AstStringer {};
 
     println!("{}", ast_stringer.stringify(&expression));
-
-    // println!("{:?}", scanner.scan_tokens());
 }

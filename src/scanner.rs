@@ -3,6 +3,7 @@ use std::str::FromStr;
 
 type Result<T> = std::result::Result<T, ScannerError>;
 
+#[derive(Debug)]
 pub(crate) enum ScannerError {
     EndOfSource,
     NotAKeyword,
@@ -46,7 +47,6 @@ impl Scanner {
 
     fn scan_token(&mut self) -> Result<Option<Token>> {
         let c = self.advance()?;
-        //dbg!(c);
         let token = match c {
             '(' => Some(Token::new(TokenType::LeftParen, self.scan_location)),
             ')' => Some(Token::new(TokenType::RightParen, self.scan_location)),
@@ -140,11 +140,18 @@ impl Scanner {
     ) -> Result<String> {
         let mut index = start_index;
         loop {
-            self.end_reached(index)?;
-            if matched(self.char_at(index)) {
-                return Ok(String::from(&self.source[start_index..index]));
+            match self.end_reached(index) {
+                Ok(()) => {
+                    if matched(self.char_at(index)) {
+                        return Ok(String::from(&self.source[start_index..index]));
+                    }
+                    index += 1;
+                }
+                Err(ScannerError::EndOfSource) if start_index < index => {
+                    return Ok(String::from(&self.source[start_index..index]));
+                }
+                Err(e) => return Err(e),
             }
-            index += 1;
         }
     }
 
@@ -173,7 +180,8 @@ impl Scanner {
     fn number_literal(&mut self) -> Result<Token> {
         let literal = self.advance_until_and_capture(self.lexeme_current_index - 1, |c| {
             !(c.is_digit(10) || c == '.')
-        })?;
+        });
+        let literal = literal.unwrap();
         self.lexeme_current_index += literal.len() - 1;
         Ok(Token::new(
             TokenType::Number(f64::from_str(&literal).unwrap()),
@@ -249,6 +257,25 @@ mod tests {
             Token::new(TokenType::Identifier("an_identifier".to_owned()), 7.into()),
             Token::new(TokenType::Identifier("AnotherOne".to_owned()), 7.into()),
             Token::new(TokenType::Eof, 8.into()),
+        ];
+
+        assert_eq!(tokens.len(), expected_tokens.len());
+        for (t, expected) in zip(tokens, expected_tokens) {
+            assert_eq!(*t, expected);
+        }
+    }
+
+    #[test]
+    fn single_line() {
+        let source = "1 + 2";
+        let mut scanner = Scanner::new(source.to_owned());
+        let tokens = scanner.scan_tokens();
+
+        let expected_tokens = vec![
+            Token::new(TokenType::Number(1f64), 1.into()),
+            Token::new(TokenType::Plus, 1.into()),
+            Token::new(TokenType::Number(2f64), 1.into()),
+            Token::new(TokenType::Eof, 1.into()),
         ];
 
         assert_eq!(tokens.len(), expected_tokens.len());

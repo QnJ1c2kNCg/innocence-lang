@@ -7,6 +7,7 @@ pub(crate) trait ExpressionVisitor<T> {
     fn visit_literal(&mut self, e: &Expression) -> T;
 }
 
+#[derive(Debug)]
 pub(crate) enum Expression {
     Binary {
         left: Box<Expression>,

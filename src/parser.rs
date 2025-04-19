@@ -236,3 +236,48 @@ impl<'a> Parser<'a> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{AstStringer, Scanner};
+
+    use super::*;
+
+    #[test]
+    fn parser_arithmetic_precedence() {
+        let source = "1 + 2 * 3 / 4";
+        let mut scanner = Scanner::new(source.to_owned());
+        let tokens = scanner.scan_tokens();
+        let parser = Parser::new(tokens);
+        let expression = parser.parse().unwrap();
+
+        let mut ast_stringer = AstStringer {};
+        assert_eq!("(+ 1 (/ (* 2 3) 4))", ast_stringer.stringify(&expression));
+    }
+
+    #[test]
+    fn parser_grouping_ok() {
+        let source = "(1 + 2) * 3 / 4";
+        let mut scanner = Scanner::new(source.to_owned());
+        let tokens = scanner.scan_tokens();
+        let parser = Parser::new(tokens);
+        let expression = parser.parse().unwrap();
+
+        let mut ast_stringer = AstStringer {};
+        assert_eq!(
+            "(/ (* (group (+ 1 2)) 3) 4)",
+            ast_stringer.stringify(&expression)
+        );
+    }
+
+    #[test]
+    fn parser_grouping_err() {
+        let source = "(1 + 2 * 3 / 4";
+        let mut scanner = Scanner::new(source.to_owned());
+        let tokens = scanner.scan_tokens();
+        let parser = Parser::new(tokens);
+        let err = parser.parse().unwrap_err();
+
+        assert_eq!(err.message, "Expect ')' after expression.")
+    }
+}
