@@ -164,7 +164,7 @@ impl Token {
     }
 
     pub(crate) fn lexeme(&self) -> String {
-        match self.token_type {
+        match &self.token_type {
             TokenType::LeftParen => "(".to_owned(),
             TokenType::RightParen => ")".to_owned(),
             TokenType::LeftBrace => "{".to_owned(),
@@ -185,7 +185,7 @@ impl Token {
             TokenType::Less => todo!(),
             TokenType::LessEqual => todo!(),
             TokenType::Identifier(_) => todo!(),
-            TokenType::String(_) => todo!(),
+            TokenType::String(str) => str.clone(),
             TokenType::Number(number) => number.to_string(),
             TokenType::And => todo!(),
             TokenType::Or => todo!(),
@@ -194,8 +194,8 @@ impl Token {
             TokenType::Else => todo!(),
             TokenType::For => todo!(),
             TokenType::While => todo!(),
-            TokenType::False => todo!(),
-            TokenType::True => todo!(),
+            TokenType::False => "false".to_owned(),
+            TokenType::True => "true".to_owned(),
             TokenType::Fn => todo!(),
             TokenType::Nil => todo!(),
             TokenType::Print => todo!(),

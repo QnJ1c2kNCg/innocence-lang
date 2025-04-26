@@ -1,10 +1,10 @@
 use crate::tokens::Token;
 
 pub(crate) trait ExpressionVisitor<T> {
-    fn visit_binary(&mut self, e: &Expression) -> T;
-    fn visit_unary(&mut self, e: &Expression) -> T;
-    fn visit_grouping(&mut self, e: &Expression) -> T;
-    fn visit_literal(&mut self, e: &Expression) -> T;
+    fn visit_binary(&mut self, expr: &Expression) -> T;
+    fn visit_unary(&mut self, expr: &Expression) -> T;
+    fn visit_grouping(&mut self, expr: &Expression) -> T;
+    fn visit_literal(&mut self, expr: &Expression) -> T;
 }
 
 #[derive(Debug)]
