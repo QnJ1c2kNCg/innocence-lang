@@ -1,5 +1,6 @@
 use crate::{
     expressions::{Expression, ExpressionVisitor},
+    statements::{Statement, StatementVisitor},
     tokens::{Token, TokenType},
 };
 
@@ -92,15 +93,18 @@ impl PartiallyInterpretedExpression {
 }
 
 impl Interpreter {
-    pub(crate) fn interpret(
-        &mut self,
-        expr: &Expression,
-    ) -> Result<PartiallyInterpretedExpression> {
-        let evaluated = self.evaluate(expr);
-        if evaluated.is_err() {
-            todo!("call report error and make sure to show the line number")
+    pub(crate) fn interpret(&mut self, statements: &Vec<Statement>) -> Result<()> {
+        for statement in statements {
+            let res = self.execute(statement);
+            if res.is_err() {
+                todo!("call report error and make sure to show the line number")
+            }
         }
-        evaluated
+        Ok(())
+    }
+
+    fn execute(&mut self, statement: &Statement) -> Result<()> {
+        statement.accept(self)
     }
 
     fn evaluate(&mut self, expr: &Expression) -> Result<PartiallyInterpretedExpression> {
@@ -227,6 +231,26 @@ impl ExpressionVisitor<Result<PartiallyInterpretedExpression>> for Interpreter {
     }
 }
 
+impl StatementVisitor<Result<()>> for Interpreter {
+    fn visit_expression_stmt(&mut self, stmt: &Statement) -> Result<()> {
+        match stmt {
+            // XXX: Kinda weird that we are not returning anything here, L3441
+            Statement::Expression(expression) => self.evaluate(expression).map(|_| ()),
+            _ => unreachable!(),
+        }
+    }
+
+    fn visit_print_stmt(&mut self, stmt: &Statement) -> Result<()> {
+        match stmt {
+            Statement::Print(expression) => {
+                let evaluated = self.evaluate(expression);
+                Ok(println!("{:?}", evaluated))
+            }
+            _ => unreachable!(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{Parser, Scanner};
@@ -235,79 +259,103 @@ mod tests {
 
     #[test]
     fn arithmetic() {
-        let source = "1 + 2 * 5 / 4 - 1";
+        let source = "1 + 2 * 5 / 4 - 1;";
         let mut scanner = Scanner::new(source.to_owned());
         let tokens = scanner.scan_tokens();
         let parser = Parser::new(tokens);
-        let expression = parser.parse().unwrap();
+        let statements = parser.parse().unwrap();
 
-        let mut interpreter = Interpreter {};
-        let interpreted = interpreter.interpret(&expression).unwrap();
-        assert_eq!(interpreted, PartiallyInterpretedExpression::Number(2.5));
+        match &statements[0] {
+            Statement::Expression(expression) => {
+                let mut interpreter = Interpreter {};
+                let interpreted = interpreter.evaluate(&expression).unwrap();
+
+                assert_eq!(interpreted, PartiallyInterpretedExpression::Number(2.5));
+            }
+            _ => panic!(),
+        }
     }
 
     #[test]
     fn truths() {
         let sources = [
-            "true",
-            "true == true",
-            "true != false",
-            "false == false",
-            "1 == 1",
-            "1 != 2",
-            "1.5 == 1.5",
-            "1.5 != 2.5",
-            r#""foo" == "foo""#,
-            r#""foo" != "bar""#,
+            "true;",
+            "true == true;",
+            "true != false;",
+            "false == false;",
+            "1 == 1;",
+            "1 != 2;",
+            "1.5 == 1.5;",
+            "1.5 != 2.5;",
+            r#""foo" == "foo";"#,
+            r#""foo" != "bar";"#,
         ];
         for source in sources {
             let mut scanner = Scanner::new(source.to_owned());
             let tokens = scanner.scan_tokens();
             let parser = Parser::new(tokens);
-            let expression = parser.parse().unwrap();
+            let statements = parser.parse().unwrap();
 
-            let mut interpreter = Interpreter {};
-            let interpreted = interpreter.interpret(&expression).unwrap();
-            assert_eq!(interpreted, PartiallyInterpretedExpression::Bool(true));
+            match &statements[0] {
+                Statement::Expression(expression) => {
+                    let mut interpreter = Interpreter {};
+                    let interpreted = interpreter.evaluate(&expression).unwrap();
+
+                    assert_eq!(interpreted, PartiallyInterpretedExpression::Bool(true));
+                }
+                _ => panic!(),
+            }
         }
     }
 
     #[test]
     fn lies() {
         let sources = [
-            "false",
-            "true != true",
-            "true == false",
-            "false != false",
-            "1 != 1",
-            "1 == 2",
-            "1.5 != 1.5",
-            "1.5 == 2.5",
-            r#""foo" != "foo""#,
-            r#""foo" == "bar""#,
+            "false;",
+            "true != true;",
+            "true == false;",
+            "false != false;",
+            "1 != 1;",
+            "1 == 2;",
+            "1.5 != 1.5;",
+            "1.5 == 2.5;",
+            r#""foo" != "foo";"#,
+            r#""foo" == "bar";"#,
         ];
         for source in sources {
             let mut scanner = Scanner::new(source.to_owned());
             let tokens = scanner.scan_tokens();
             let parser = Parser::new(tokens);
-            let expression = parser.parse().unwrap();
+            let statements = parser.parse().unwrap();
 
-            let mut interpreter = Interpreter {};
-            let interpreted = interpreter.interpret(&expression).unwrap();
-            assert_eq!(interpreted, PartiallyInterpretedExpression::Bool(false));
+            match &statements[0] {
+                Statement::Expression(expression) => {
+                    let mut interpreter = Interpreter {};
+                    let interpreted = interpreter.evaluate(&expression).unwrap();
+
+                    assert_eq!(interpreted, PartiallyInterpretedExpression::Bool(false));
+                }
+                _ => panic!(),
+            }
         }
     }
 
     #[test]
     fn negative() {
-        let source = "-1";
+        let source = "-1;";
         let mut scanner = Scanner::new(source.to_owned());
         let tokens = scanner.scan_tokens();
         let parser = Parser::new(tokens);
-        let expression = parser.parse().unwrap();
+        let statements = parser.parse().unwrap();
 
-        let mut interpreter = Interpreter {};
-        let interpreted = interpreter.interpret(&expression).unwrap();
-        assert_eq!(interpreted, PartiallyInterpretedExpression::Number(-1.0));
+        match &statements[0] {
+            Statement::Expression(expression) => {
+                let mut interpreter = Interpreter {};
+                let interpreted = interpreter.evaluate(&expression).unwrap();
+
+                assert_eq!(interpreted, PartiallyInterpretedExpression::Number(-1.0));
+            }
+            _ => panic!(),
+        }
     }
 }

@@ -4,6 +4,7 @@ mod interpreter;
 mod logger;
 mod parser;
 mod scanner;
+mod statements;
 mod tokens;
 
 use std::{env, io::Write};
@@ -44,15 +45,19 @@ fn run(source: String) {
     let mut scanner = Scanner::new(source);
     let tokens = scanner.scan_tokens();
     let parser = Parser::new(tokens);
-    let ast_root_expr = parser.parse().unwrap();
-
-    let mut ast_stringer = AstStringer {};
-
-    println!("AST view:");
-    println!("{}", ast_stringer.stringify(&ast_root_expr));
-
-    println!("Interpreter:");
+    let statements = parser.parse().unwrap();
     let mut interpreter = Interpreter {};
-    let interpreted = interpreter.interpret(&ast_root_expr);
-    println!("{:?}\n", interpreted);
+    interpreter.interpret(&statements).unwrap();
+
+    // let ast_root_expr = parser.parse().unwrap();
+
+    // let mut ast_stringer = AstStringer {};
+
+    // println!("AST view:");
+    // println!("{}", ast_stringer.stringify(&ast_root_expr));
+
+    // println!("Interpreter:");
+    // let mut interpreter = Interpreter {};
+    // let interpreted = interpreter.interpret(&ast_root_expr);
+    // println!("{:?}\n", interpreted);
 }

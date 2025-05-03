@@ -3,6 +3,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use crate::{
     expressions::Expression,
     logger::report_error,
+    statements::Statement,
     tokens::{Token, TokenType},
 };
 
@@ -21,6 +22,10 @@ impl ParserError {
 }
 
 /*
+program        → statement* EOF ;
+statement      → exprStmt | printStmt ;
+exprStmt       → expression ";" ;
+printStmt      → "print" expression ";" ;
 expression     → equality ;
 equality       → comparison ( ( "!=" | "==" ) comparison )* ;
 comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
@@ -44,8 +49,32 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub(crate) fn parse(&self) -> Result<Expression> {
-        self.expression()
+    pub(crate) fn parse(&self) -> Result<Vec<Statement>> {
+        let mut statements = Vec::with_capacity(1024);
+        while !self.is_at_end() {
+            statements.push(self.statement()?);
+        }
+        Ok(statements)
+    }
+
+    fn statement(&self) -> Result<Statement> {
+        if self.match_(&[TokenType::Print]) {
+            self.print_statement()
+        } else {
+            self.expression_statement()
+        }
+    }
+
+    fn print_statement(&self) -> Result<Statement> {
+        let expr = self.expression()?;
+        self.consume(&TokenType::Semicolon, "Exprect ';' after value")?;
+        Ok(Statement::Print(expr))
+    }
+
+    fn expression_statement(&self) -> Result<Statement> {
+        let expr = self.expression()?;
+        self.consume(&TokenType::Semicolon, "Exprect ';' after expression")?;
+        Ok(Statement::Expression(expr))
     }
 
     fn expression(&self) -> Result<Expression> {
@@ -245,34 +274,44 @@ mod tests {
 
     #[test]
     fn parser_arithmetic_precedence() {
-        let source = "1 + 2 * 3 / 4";
+        let source = "1 + 2 * 3 / 4;";
         let mut scanner = Scanner::new(source.to_owned());
         let tokens = scanner.scan_tokens();
         let parser = Parser::new(tokens);
-        let expression = parser.parse().unwrap();
+        let statements = parser.parse().unwrap();
 
-        let mut ast_stringer = AstStringer {};
-        assert_eq!("(+ 1 (/ (* 2 3) 4))", ast_stringer.stringify(&expression));
+        match &statements[0] {
+            Statement::Expression(expression) => {
+                let mut ast_stringer = AstStringer {};
+                assert_eq!("(+ 1 (/ (* 2 3) 4))", ast_stringer.stringify(&expression));
+            }
+            _ => panic!(),
+        }
     }
 
     #[test]
     fn parser_grouping_ok() {
-        let source = "(1 + 2) * 3 / 4";
+        let source = "(1 + 2) * 3 / 4;";
         let mut scanner = Scanner::new(source.to_owned());
         let tokens = scanner.scan_tokens();
         let parser = Parser::new(tokens);
-        let expression = parser.parse().unwrap();
+        let statements = parser.parse().unwrap();
 
-        let mut ast_stringer = AstStringer {};
-        assert_eq!(
-            "(/ (* (group (+ 1 2)) 3) 4)",
-            ast_stringer.stringify(&expression)
-        );
+        match &statements[0] {
+            Statement::Expression(expression) => {
+                let mut ast_stringer = AstStringer {};
+                assert_eq!(
+                    "(/ (* (group (+ 1 2)) 3) 4)",
+                    ast_stringer.stringify(&expression)
+                );
+            }
+            _ => panic!(),
+        }
     }
 
     #[test]
     fn parser_grouping_err() {
-        let source = "(1 + 2 * 3 / 4";
+        let source = "(1 + 2 * 3 / 4;";
         let mut scanner = Scanner::new(source.to_owned());
         let tokens = scanner.scan_tokens();
         let parser = Parser::new(tokens);
