@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::{
     environment::Environment,
     expressions::{Expression, ExpressionVisitor},
@@ -24,6 +26,16 @@ pub(crate) enum PartiallyInterpretedExpression {
     // TODO: Swap out to customer number type
     Number(f64),
     Bool(bool),
+}
+
+impl Display for PartiallyInterpretedExpression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PartiallyInterpretedExpression::String(s) => write!(f, "{}", s),
+            PartiallyInterpretedExpression::Number(n) => write!(f, "{}", n),
+            PartiallyInterpretedExpression::Bool(b) => write!(f, "{}", b),
+        }
+    }
 }
 
 impl PartiallyInterpretedExpression {
@@ -261,8 +273,8 @@ impl StatementVisitor<Result<()>> for Interpreter {
     fn visit_print_stmt(&mut self, stmt: &Statement) -> Result<()> {
         match stmt {
             Statement::Print(expression) => {
-                let evaluated = self.evaluate(expression);
-                Ok(println!("{:?}", evaluated))
+                let evaluated = self.evaluate(expression)?;
+                Ok(println!("{}", evaluated))
             }
             _ => unreachable!(),
         }
