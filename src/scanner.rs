@@ -196,7 +196,7 @@ impl Scanner {
         self.lexeme_current_index += literal.len() - 1;
         // Check if the identifier is actually a keyword
         let token_type =
-            TokenType::try_from(literal.as_str()).unwrap_or(TokenType::Identifier(literal));
+            TokenType::try_from(literal.as_str()).unwrap_or(TokenType::Identifier(literal.into()));
         Ok(Token::new(token_type, self.scan_location))
     }
 }
@@ -254,8 +254,8 @@ mod tests {
             Token::new(TokenType::Else, 6.into()),
             Token::new(TokenType::For, 6.into()),
             Token::new(TokenType::While, 6.into()),
-            Token::new(TokenType::Identifier("an_identifier".to_owned()), 7.into()),
-            Token::new(TokenType::Identifier("AnotherOne".to_owned()), 7.into()),
+            Token::new(TokenType::Identifier("an_identifier".into()), 7.into()),
+            Token::new(TokenType::Identifier("AnotherOne".into()), 7.into()),
             Token::new(TokenType::Eof, 8.into()),
         ];
 

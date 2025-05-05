@@ -1,6 +1,27 @@
 use crate::scanner::ScannerError;
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub(crate) struct Identifier(String);
+
+impl Identifier {
+    pub(crate) fn new(id: String) -> Self {
+        Self(id)
+    }
+}
+
+impl From<String> for Identifier {
+    fn from(value: String) -> Self {
+        Self::new(value)
+    }
+}
+
+impl From<&str> for Identifier {
+    fn from(value: &str) -> Self {
+        Self::new(value.to_owned())
+    }
+}
+
+#[derive(Clone, Debug)]
 pub(crate) enum TokenType {
     // Single char tokens
     LeftParen,
@@ -26,7 +47,7 @@ pub(crate) enum TokenType {
     LessEqual,
 
     // Literals
-    Identifier(String),
+    Identifier(Identifier),
     String(String),
     Number(f64),
 
@@ -184,7 +205,7 @@ impl Token {
             TokenType::GreaterEqual => ">=".to_owned(),
             TokenType::Less => "<".to_owned(),
             TokenType::LessEqual => "<=".to_owned(),
-            TokenType::Identifier(id) => id.clone(),
+            TokenType::Identifier(id) => id.0.clone(),
             TokenType::String(str) => str.clone(),
             TokenType::Number(number) => number.to_string(),
             TokenType::And => todo!(),

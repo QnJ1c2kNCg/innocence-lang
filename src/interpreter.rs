@@ -1,7 +1,8 @@
 use crate::{
+    environment::Environment,
     expressions::{Expression, ExpressionVisitor},
     statements::{Statement, StatementVisitor},
-    tokens::{Token, TokenType},
+    tokens::{Identifier, Token, TokenType},
 };
 
 type Result<T> = std::result::Result<T, InterpreterError>;
@@ -9,9 +10,13 @@ type Result<T> = std::result::Result<T, InterpreterError>;
 #[derive(Debug)]
 pub(crate) enum InterpreterError {
     InvalidType(String),
+    UnknownVariable(Identifier),
 }
 
-pub(crate) struct Interpreter {}
+#[derive(Default)]
+pub(crate) struct Interpreter {
+    environment: Environment,
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum PartiallyInterpretedExpression {
@@ -229,6 +234,19 @@ impl ExpressionVisitor<Result<PartiallyInterpretedExpression>> for Interpreter {
             _ => unreachable!(),
         }
     }
+
+    fn visit_variable(&mut self, expr: &Expression) -> Result<PartiallyInterpretedExpression> {
+        match expr {
+            // TODO: I would like unknown variable errors to be detected
+            // at scan time, not at runtime.
+            Expression::Variable { id } => self
+                .environment
+                .get(id)
+                .cloned()
+                .ok_or(InterpreterError::UnknownVariable(id.clone())),
+            _ => unreachable!(),
+        }
+    }
 }
 
 impl StatementVisitor<Result<()>> for Interpreter {
@@ -245,6 +263,17 @@ impl StatementVisitor<Result<()>> for Interpreter {
             Statement::Print(expression) => {
                 let evaluated = self.evaluate(expression);
                 Ok(println!("{:?}", evaluated))
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn visit_let_stmt(&mut self, stmt: &Statement) -> Result<()> {
+        match stmt {
+            Statement::Let { name, initializer } => {
+                let value = self.evaluate(initializer)?;
+                self.environment.bind(name.clone(), value);
+                Ok(())
             }
             _ => unreachable!(),
         }
@@ -267,7 +296,7 @@ mod tests {
 
         match &statements[0] {
             Statement::Expression(expression) => {
-                let mut interpreter = Interpreter {};
+                let mut interpreter = Interpreter::default();
                 let interpreted = interpreter.evaluate(&expression).unwrap();
 
                 assert_eq!(interpreted, PartiallyInterpretedExpression::Number(2.5));
@@ -298,7 +327,7 @@ mod tests {
 
             match &statements[0] {
                 Statement::Expression(expression) => {
-                    let mut interpreter = Interpreter {};
+                    let mut interpreter = Interpreter::default();
                     let interpreted = interpreter.evaluate(&expression).unwrap();
 
                     assert_eq!(interpreted, PartiallyInterpretedExpression::Bool(true));
@@ -330,7 +359,7 @@ mod tests {
 
             match &statements[0] {
                 Statement::Expression(expression) => {
-                    let mut interpreter = Interpreter {};
+                    let mut interpreter = Interpreter::default();
                     let interpreted = interpreter.evaluate(&expression).unwrap();
 
                     assert_eq!(interpreted, PartiallyInterpretedExpression::Bool(false));
@@ -350,7 +379,7 @@ mod tests {
 
         match &statements[0] {
             Statement::Expression(expression) => {
-                let mut interpreter = Interpreter {};
+                let mut interpreter = Interpreter::default();
                 let interpreted = interpreter.evaluate(&expression).unwrap();
 
                 assert_eq!(interpreted, PartiallyInterpretedExpression::Number(-1.0));

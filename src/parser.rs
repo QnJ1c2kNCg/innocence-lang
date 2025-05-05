@@ -4,25 +4,27 @@ use crate::{
     expressions::Expression,
     logger::report_error,
     statements::Statement,
-    tokens::{Token, TokenType},
+    tokens::{Identifier, Token, TokenType},
 };
 
 type Result<T> = std::result::Result<T, ParserError>;
 
 #[derive(Debug)]
-pub(crate) struct ParserError {
-    token: Token,
-    message: String,
+pub(crate) enum ParserError {
+    Recoverable,
+    Unrecoverable { token: Token, message: String },
 }
 
 impl ParserError {
-    fn new(token: Token, message: String) -> Self {
-        Self { token, message }
+    fn new_unrecoverable(token: Token, message: String) -> Self {
+        Self::Unrecoverable { token, message }
     }
 }
 
 /*
-program        → statement* EOF ;
+program        → declaration* EOF ;
+declaration    → varDecl | statement ;
+varDecl        → "let" IDENTIFIER ( "=" expression )? ";" ;
 statement      → exprStmt | printStmt ;
 exprStmt       → expression ";" ;
 printStmt      → "print" expression ";" ;
@@ -32,7 +34,8 @@ comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 term           → factor ( ( "-" | "+" ) factor )* ;
 factor         → unary ( ( "/" | "*" ) unary )* ;
 unary          → ( "!" | "-" ) unary | primary ;
-primary        → NUMBER | STRING | "true" | "false" | "nil" | "(" expression ")" ;
+primary        → "true" | "false" | "nil" | NUMBER | STRING | "(" expression ")" | IDENTIFIER ;
+
 */
 
 // A recursive descent parser
@@ -52,9 +55,44 @@ impl<'a> Parser<'a> {
     pub(crate) fn parse(&self) -> Result<Vec<Statement>> {
         let mut statements = Vec::with_capacity(1024);
         while !self.is_at_end() {
-            statements.push(self.statement()?);
+            statements.push(self.declaration()?);
         }
         Ok(statements)
+    }
+
+    fn declaration(&self) -> Result<Statement> {
+        let res = if self.match_(&[TokenType::Let]) {
+            self.let_declaration()
+        } else {
+            self.statement()
+        };
+
+        res.map_err(|err| {
+            self.synchronize();
+            println!("error and synchronize: TODO fix message");
+            err
+        })
+    }
+
+    fn let_declaration(&self) -> Result<Statement> {
+        let name = self.consume_expected_token(
+            &TokenType::Identifier(Identifier::new("".to_owned())),
+            "Expect variable name.",
+        )?;
+
+        let name = match &name.token_type {
+            TokenType::Identifier(identifier) => identifier.clone(),
+            _ => unreachable!(),
+        };
+
+        self.consume_expected_token(&TokenType::Equal, "Expect `=` sign.")?;
+        let initializer = self.expression()?;
+        self.consume_expected_token(
+            &TokenType::Semicolon,
+            "Expect ';' after variable declaration.",
+        )?;
+
+        Ok(Statement::Let { name, initializer })
     }
 
     fn statement(&self) -> Result<Statement> {
@@ -67,13 +105,13 @@ impl<'a> Parser<'a> {
 
     fn print_statement(&self) -> Result<Statement> {
         let expr = self.expression()?;
-        self.consume(&TokenType::Semicolon, "Exprect ';' after value")?;
+        self.consume_expected_token(&TokenType::Semicolon, "Exprect ';' after value")?;
         Ok(Statement::Print(expr))
     }
 
     fn expression_statement(&self) -> Result<Statement> {
         let expr = self.expression()?;
-        self.consume(&TokenType::Semicolon, "Exprect ';' after expression")?;
+        self.consume_expected_token(&TokenType::Semicolon, "Exprect ';' after expression")?;
         Ok(Statement::Expression(expr))
     }
 
@@ -175,14 +213,20 @@ impl<'a> Parser<'a> {
                 literal: self.previous().clone(),
             });
         }
+        if self.match_(&[TokenType::Identifier(Identifier::new("".to_owned()))]) {
+            return Ok(Expression::Variable {
+                id: Identifier::new(self.previous().lexeme()),
+            });
+        }
+
         if self.match_(&[TokenType::LeftParen]) {
             let expr = self.expression()?;
-            self.consume(&TokenType::RightParen, "Expect ')' after expression.")?;
+            self.consume_expected_token(&TokenType::RightParen, "Expect ')' after expression.")?;
             return Ok(Expression::Grouping {
                 expr: Box::new(expr),
             });
         }
-        Err(ParserError::new(
+        Err(ParserError::new_unrecoverable(
             self.current().clone(),
             "Expected expression.".to_owned(),
         ))
@@ -207,6 +251,7 @@ impl<'a> Parser<'a> {
         return &self.current().token_type == token_type;
     }
 
+    /// Advance the parser and return the next token
     fn advance(&self) -> &Token {
         if !self.is_at_end() {
             self.current_index.fetch_add(1, Ordering::Relaxed);
@@ -230,18 +275,27 @@ impl<'a> Parser<'a> {
             .unwrap()
     }
 
-    fn consume(&self, token_type: &TokenType, message: &str) -> Result<&Token> {
-        if self.check(token_type) {
+    /// Advances the parser if the next token is `expected_token_type`.
+    /// If the token does not match, an error is returned with the provided `message`.
+    fn consume_expected_token(
+        &self,
+        expected_token_type: &TokenType,
+        message: &str,
+    ) -> Result<&Token> {
+        if self.check(expected_token_type) {
             Ok(self.advance())
         } else {
             let current_token = self.current().clone();
 
             report_error(&current_token, message);
-            Err(ParserError::new(self.current().clone(), message.to_owned()))
+            Err(ParserError::new_unrecoverable(
+                self.current().clone(),
+                message.to_owned(),
+            ))
         }
     }
 
-    fn synchronize(self) {
+    fn synchronize(&self) {
         self.advance();
 
         while !self.is_at_end() {
@@ -317,6 +371,11 @@ mod tests {
         let parser = Parser::new(tokens);
         let err = parser.parse().unwrap_err();
 
-        assert_eq!(err.message, "Expect ')' after expression.")
+        match err {
+            ParserError::Recoverable => panic!(),
+            ParserError::Unrecoverable { token: _, message } => {
+                assert_eq!(message, "Expect ')' after expression.")
+            }
+        }
     }
 }

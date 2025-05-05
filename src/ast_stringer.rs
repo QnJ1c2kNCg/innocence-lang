@@ -65,6 +65,15 @@ impl ExpressionVisitor<String> for AstStringer {
             _ => unreachable!(),
         }
     }
+
+    fn visit_variable(&mut self, expr: &Expression) -> String {
+        match expr {
+            Expression::Variable { id } => {
+                return format!("variable: {:?}", id);
+            }
+            _ => unreachable!(),
+        }
+    }
 }
 #[cfg(test)]
 mod tests {

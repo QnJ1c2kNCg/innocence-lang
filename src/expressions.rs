@@ -1,10 +1,11 @@
-use crate::tokens::Token;
+use crate::tokens::{Identifier, Token};
 
 pub(crate) trait ExpressionVisitor<T> {
     fn visit_binary(&mut self, expr: &Expression) -> T;
     fn visit_unary(&mut self, expr: &Expression) -> T;
     fn visit_grouping(&mut self, expr: &Expression) -> T;
     fn visit_literal(&mut self, expr: &Expression) -> T;
+    fn visit_variable(&mut self, expr: &Expression) -> T;
 }
 
 #[derive(Debug)]
@@ -24,6 +25,9 @@ pub(crate) enum Expression {
     Literal {
         literal: Token,
     },
+    Variable {
+        id: Identifier,
+    },
 }
 
 impl Expression {
@@ -33,6 +37,7 @@ impl Expression {
             Expression::Unary { .. } => visitor.visit_unary(self),
             Expression::Grouping { .. } => visitor.visit_grouping(self),
             Expression::Literal { .. } => visitor.visit_literal(self),
+            Expression::Variable { .. } => visitor.visit_variable(self),
         }
     }
 }
