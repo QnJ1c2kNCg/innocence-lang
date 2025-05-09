@@ -11,6 +11,7 @@ type Result<T> = std::result::Result<T, ParserError>;
 
 #[derive(Debug)]
 pub(crate) enum ParserError {
+    DoesNotRequireSynchronization(String),
     Recoverable,
     Unrecoverable { token: Token, message: String },
 }
@@ -28,7 +29,8 @@ varDecl        → "let" IDENTIFIER ( "=" expression )? ";" ;
 statement      → exprStmt | printStmt ;
 exprStmt       → expression ";" ;
 printStmt      → "print" expression ";" ;
-expression     → equality ;
+expression     → assignment ;
+assignment     → IDENTIFIER "=" assignment | equality ;
 equality       → comparison ( ( "!=" | "==" ) comparison )* ;
 comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 term           → factor ( ( "-" | "+" ) factor )* ;
@@ -69,7 +71,7 @@ impl<'a> Parser<'a> {
 
         res.map_err(|err| {
             self.synchronize();
-            println!("error and synchronize: TODO fix message");
+            println!("error and synchronize: TODO fix message: {:?}", err);
             err
         })
     }
@@ -116,7 +118,29 @@ impl<'a> Parser<'a> {
     }
 
     fn expression(&self) -> Result<Expression> {
-        self.equality()
+        self.assignment()
+    }
+
+    fn assignment(&self) -> Result<Expression> {
+        let expr = self.equality()?;
+
+        // We use recursion to handle unbounded l-value assignments
+        if self.match_(&[TokenType::Equal]) {
+            let value = self.assignment()?;
+
+            return if let Expression::Variable { id } = expr {
+                Ok(Expression::Assign {
+                    id,
+                    value: Box::new(value),
+                })
+            } else {
+                Err(ParserError::DoesNotRequireSynchronization(
+                    "Invalid assignemnt target.".to_owned(),
+                ))
+            };
+        }
+
+        Ok(expr)
     }
 
     fn equality(&self) -> Result<Expression> {
@@ -372,10 +396,10 @@ mod tests {
         let err = parser.parse().unwrap_err();
 
         match err {
-            ParserError::Recoverable => panic!(),
             ParserError::Unrecoverable { token: _, message } => {
                 assert_eq!(message, "Expect ')' after expression.")
             }
+            _ => panic!(),
         }
     }
 }

@@ -259,6 +259,22 @@ impl ExpressionVisitor<Result<PartiallyInterpretedExpression>> for Interpreter {
             _ => unreachable!(),
         }
     }
+
+    fn visit_assign(&mut self, expr: &Expression) -> Result<PartiallyInterpretedExpression> {
+        match expr {
+            Expression::Assign { id, value } => {
+                let value = self.evaluate(value)?;
+                self.environment
+                    .assign(id.clone(), value.clone())
+                    .map_err(|_err| {
+                        // TODO: log
+                        InterpreterError::UnknownVariable(id.clone())
+                    })?;
+                Ok(value)
+            }
+            _ => unreachable!(),
+        }
+    }
 }
 
 impl StatementVisitor<Result<()>> for Interpreter {
@@ -284,7 +300,7 @@ impl StatementVisitor<Result<()>> for Interpreter {
         match stmt {
             Statement::Let { name, initializer } => {
                 let value = self.evaluate(initializer)?;
-                self.environment.bind(name.clone(), value);
+                self.environment.define(name.clone(), value);
                 Ok(())
             }
             _ => unreachable!(),

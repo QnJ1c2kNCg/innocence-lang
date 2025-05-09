@@ -74,6 +74,15 @@ impl ExpressionVisitor<String> for AstStringer {
             _ => unreachable!(),
         }
     }
+
+    fn visit_assign(&mut self, expr: &Expression) -> String {
+        match expr {
+            Expression::Assign { id, value } => {
+                return format!("assign: {:?}, {:?}", id, value);
+            }
+            _ => unreachable!(),
+        }
+    }
 }
 #[cfg(test)]
 mod tests {
