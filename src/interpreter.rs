@@ -4,7 +4,7 @@ use crate::{
     environment::Environment,
     expressions::{Expression, ExpressionVisitor},
     statements::{Statement, StatementVisitor},
-    tokens::{Identifier, Token, TokenType},
+    tokens::{Identifier, TokenType},
 };
 
 type Result<T> = std::result::Result<T, InterpreterError>;

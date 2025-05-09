@@ -1,7 +1,4 @@
-use crate::{
-    interpreter::Value,
-    tokens::{Identifier, Token},
-};
+use crate::tokens::{Identifier, Token};
 
 pub(crate) trait ExpressionVisitor<T> {
     fn visit_binary(&mut self, expr: &Expression) -> T;

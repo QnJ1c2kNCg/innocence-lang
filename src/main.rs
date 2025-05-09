@@ -10,7 +10,6 @@ mod tokens;
 
 use std::{env, io::Write};
 
-use ast_stringer::AstStringer;
 use interpreter::Interpreter;
 use parser::Parser;
 use scanner::Scanner;
