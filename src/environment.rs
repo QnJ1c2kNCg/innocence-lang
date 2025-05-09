@@ -1,6 +1,6 @@
 use std::collections::{HashMap, hash_map::Entry};
 
-use crate::{interpreter::PartiallyInterpretedExpression, tokens::Identifier};
+use crate::{interpreter::Value, tokens::Identifier};
 
 pub(crate) enum EnvironmentError {
     UndefinedVariable(Identifier),
@@ -8,19 +8,15 @@ pub(crate) enum EnvironmentError {
 
 #[derive(Default)]
 pub(crate) struct Environment {
-    values: HashMap<Identifier, PartiallyInterpretedExpression>,
+    values: HashMap<Identifier, Value>,
 }
 
 impl Environment {
-    pub(crate) fn define(&mut self, id: Identifier, value: PartiallyInterpretedExpression) {
+    pub(crate) fn define(&mut self, id: Identifier, value: Value) {
         self.values.insert(id, value);
     }
 
-    pub(crate) fn assign(
-        &mut self,
-        id: Identifier,
-        value: PartiallyInterpretedExpression,
-    ) -> Result<(), EnvironmentError> {
+    pub(crate) fn assign(&mut self, id: Identifier, value: Value) -> Result<(), EnvironmentError> {
         match self.values.entry(id) {
             Entry::Occupied(mut occupied_entry) => {
                 occupied_entry.insert(value);
@@ -32,7 +28,7 @@ impl Environment {
         }
     }
 
-    pub(crate) fn get(&self, id: &Identifier) -> Option<&PartiallyInterpretedExpression> {
+    pub(crate) fn get(&self, id: &Identifier) -> Option<&Value> {
         self.values.get(id)
     }
 }

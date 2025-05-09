@@ -21,34 +21,34 @@ pub(crate) struct Interpreter {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub(crate) enum PartiallyInterpretedExpression {
+pub(crate) enum Value {
     String(String),
     // TODO: Swap out to customer number type
     Number(f64),
     Bool(bool),
 }
 
-impl Display for PartiallyInterpretedExpression {
+impl Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            PartiallyInterpretedExpression::String(s) => write!(f, "{}", s),
-            PartiallyInterpretedExpression::Number(n) => write!(f, "{}", n),
-            PartiallyInterpretedExpression::Bool(b) => write!(f, "{}", b),
+            Value::String(s) => write!(f, "{}", s),
+            Value::Number(n) => write!(f, "{}", n),
+            Value::Bool(b) => write!(f, "{}", b),
         }
     }
 }
 
-impl PartiallyInterpretedExpression {
+impl Value {
     fn is_number(&self) -> bool {
         match self {
-            PartiallyInterpretedExpression::Number(_) => true,
+            Value::Number(_) => true,
             _ => false,
         }
     }
 
     fn unwrap_number(&self) -> Result<f64> {
         match self {
-            PartiallyInterpretedExpression::Number(number) => Ok(*number),
+            Value::Number(number) => Ok(*number),
             _ => Err(InterpreterError::InvalidType(format!(
                 "Expected a Number but got {:?}",
                 self
@@ -58,14 +58,14 @@ impl PartiallyInterpretedExpression {
 
     fn is_bool(&self) -> bool {
         match self {
-            PartiallyInterpretedExpression::Bool(_) => true,
+            Value::Bool(_) => true,
             _ => false,
         }
     }
 
     fn unwrap_bool(&self) -> Result<bool> {
         match self {
-            PartiallyInterpretedExpression::Bool(bool) => Ok(*bool),
+            Value::Bool(bool) => Ok(*bool),
             _ => Err(InterpreterError::InvalidType(format!(
                 "Expected a Bool but got {:?}",
                 self
@@ -75,14 +75,14 @@ impl PartiallyInterpretedExpression {
 
     fn is_string(&self) -> bool {
         match self {
-            PartiallyInterpretedExpression::String(_) => true,
+            Value::String(_) => true,
             _ => false,
         }
     }
 
     fn unwrap_string(self) -> Result<String> {
         match self {
-            PartiallyInterpretedExpression::String(string) => Ok(string),
+            Value::String(string) => Ok(string),
             _ => Err(InterpreterError::InvalidType(format!(
                 "Expected a String but got {:?}",
                 self
@@ -124,13 +124,13 @@ impl Interpreter {
         statement.accept(self)
     }
 
-    fn evaluate(&mut self, expr: &Expression) -> Result<PartiallyInterpretedExpression> {
+    fn evaluate(&mut self, expr: &Expression) -> Result<Value> {
         expr.accept(self)
     }
 }
 
-impl ExpressionVisitor<Result<PartiallyInterpretedExpression>> for Interpreter {
-    fn visit_binary(&mut self, expr: &Expression) -> Result<PartiallyInterpretedExpression> {
+impl ExpressionVisitor<Result<Value>> for Interpreter {
+    fn visit_binary(&mut self, expr: &Expression) -> Result<Value> {
         match expr {
             Expression::Binary {
                 left,
@@ -143,28 +143,28 @@ impl ExpressionVisitor<Result<PartiallyInterpretedExpression>> for Interpreter {
                     TokenType::Minus => {
                         let left = left.unwrap_number()?;
                         let right = right.unwrap_number()?;
-                        Ok(PartiallyInterpretedExpression::Number(left - right))
+                        Ok(Value::Number(left - right))
                     }
                     TokenType::Slash => {
                         let left = left.unwrap_number()?;
                         let right = right.unwrap_number()?;
-                        Ok(PartiallyInterpretedExpression::Number(left / right))
+                        Ok(Value::Number(left / right))
                     }
                     TokenType::Star => {
                         let left = left.unwrap_number()?;
                         let right = right.unwrap_number()?;
-                        Ok(PartiallyInterpretedExpression::Number(left * right))
+                        Ok(Value::Number(left * right))
                     }
                     TokenType::Plus => {
                         if left.is_number() {
                             let left = left.unwrap_number()?;
                             let right = right.unwrap_number()?;
-                            Ok(PartiallyInterpretedExpression::Number(left + right))
+                            Ok(Value::Number(left + right))
                         } else if left.is_string() {
                             let mut left = left.unwrap_string()?;
                             let right = right.unwrap_string()?;
                             left.push_str(right.as_str());
-                            Ok(PartiallyInterpretedExpression::String(left))
+                            Ok(Value::String(left))
                         } else {
                             unreachable!()
                         }
@@ -172,30 +172,30 @@ impl ExpressionVisitor<Result<PartiallyInterpretedExpression>> for Interpreter {
                     TokenType::Greater => {
                         let left = left.unwrap_number()?;
                         let right = right.unwrap_number()?;
-                        Ok(PartiallyInterpretedExpression::Bool(left > right))
+                        Ok(Value::Bool(left > right))
                     }
                     TokenType::GreaterEqual => {
                         let left = left.unwrap_number()?;
                         let right = right.unwrap_number()?;
-                        Ok(PartiallyInterpretedExpression::Bool(left >= right))
+                        Ok(Value::Bool(left >= right))
                     }
                     TokenType::Less => {
                         let left = left.unwrap_number()?;
                         let right = right.unwrap_number()?;
-                        Ok(PartiallyInterpretedExpression::Bool(left < right))
+                        Ok(Value::Bool(left < right))
                     }
                     TokenType::LessEqual => {
                         let left = left.unwrap_number()?;
                         let right = right.unwrap_number()?;
-                        Ok(PartiallyInterpretedExpression::Bool(left <= right))
+                        Ok(Value::Bool(left <= right))
                     }
                     TokenType::BangEqual => {
-                        let outcome = !PartiallyInterpretedExpression::is_equal(&left, &right)?;
-                        Ok(PartiallyInterpretedExpression::Bool(outcome))
+                        let outcome = !Value::is_equal(&left, &right)?;
+                        Ok(Value::Bool(outcome))
                     }
                     TokenType::EqualEqual => {
-                        let outcome = PartiallyInterpretedExpression::is_equal(&left, &right)?;
-                        Ok(PartiallyInterpretedExpression::Bool(outcome))
+                        let outcome = Value::is_equal(&left, &right)?;
+                        Ok(Value::Bool(outcome))
                     }
 
                     _ => unreachable!(),
@@ -205,18 +205,18 @@ impl ExpressionVisitor<Result<PartiallyInterpretedExpression>> for Interpreter {
         }
     }
 
-    fn visit_unary(&mut self, expr: &Expression) -> Result<PartiallyInterpretedExpression> {
+    fn visit_unary(&mut self, expr: &Expression) -> Result<Value> {
         match expr {
             Expression::Unary { operation, right } => {
                 let right = self.evaluate(right)?;
                 match operation.token_type {
                     TokenType::Minus => {
                         let number = right.unwrap_number()?;
-                        Ok(PartiallyInterpretedExpression::Number(-number))
+                        Ok(Value::Number(-number))
                     }
                     TokenType::Bang => {
                         let bool = right.unwrap_bool()?;
-                        Ok(PartiallyInterpretedExpression::Bool(!bool))
+                        Ok(Value::Bool(!bool))
                     }
                     _ => unreachable!(),
                 }
@@ -225,29 +225,27 @@ impl ExpressionVisitor<Result<PartiallyInterpretedExpression>> for Interpreter {
         }
     }
 
-    fn visit_grouping(&mut self, expr: &Expression) -> Result<PartiallyInterpretedExpression> {
+    fn visit_grouping(&mut self, expr: &Expression) -> Result<Value> {
         match expr {
             Expression::Grouping { expr } => self.evaluate(&expr),
             _ => unreachable!(),
         }
     }
 
-    fn visit_literal(&mut self, expr: &Expression) -> Result<PartiallyInterpretedExpression> {
+    fn visit_literal(&mut self, expr: &Expression) -> Result<Value> {
         match expr {
             Expression::Literal { literal } => match &literal.token_type {
-                TokenType::Number(number) => Ok(PartiallyInterpretedExpression::Number(*number)),
-                TokenType::String(string) => {
-                    Ok(PartiallyInterpretedExpression::String(string.clone()))
-                }
-                TokenType::True => Ok(PartiallyInterpretedExpression::Bool(true)),
-                TokenType::False => Ok(PartiallyInterpretedExpression::Bool(false)),
+                TokenType::Number(number) => Ok(Value::Number(*number)),
+                TokenType::String(string) => Ok(Value::String(string.clone())),
+                TokenType::True => Ok(Value::Bool(true)),
+                TokenType::False => Ok(Value::Bool(false)),
                 _ => unreachable!(),
             },
             _ => unreachable!(),
         }
     }
 
-    fn visit_variable(&mut self, expr: &Expression) -> Result<PartiallyInterpretedExpression> {
+    fn visit_variable(&mut self, expr: &Expression) -> Result<Value> {
         match expr {
             // TODO: I would like unknown variable errors to be detected
             // at scan time, not at runtime.
@@ -260,7 +258,7 @@ impl ExpressionVisitor<Result<PartiallyInterpretedExpression>> for Interpreter {
         }
     }
 
-    fn visit_assign(&mut self, expr: &Expression) -> Result<PartiallyInterpretedExpression> {
+    fn visit_assign(&mut self, expr: &Expression) -> Result<Value> {
         match expr {
             Expression::Assign { id, value } => {
                 let value = self.evaluate(value)?;
@@ -327,7 +325,7 @@ mod tests {
                 let mut interpreter = Interpreter::default();
                 let interpreted = interpreter.evaluate(&expression).unwrap();
 
-                assert_eq!(interpreted, PartiallyInterpretedExpression::Number(2.5));
+                assert_eq!(interpreted, Value::Number(2.5));
             }
             _ => panic!(),
         }
@@ -358,7 +356,7 @@ mod tests {
                     let mut interpreter = Interpreter::default();
                     let interpreted = interpreter.evaluate(&expression).unwrap();
 
-                    assert_eq!(interpreted, PartiallyInterpretedExpression::Bool(true));
+                    assert_eq!(interpreted, Value::Bool(true));
                 }
                 _ => panic!(),
             }
@@ -390,7 +388,7 @@ mod tests {
                     let mut interpreter = Interpreter::default();
                     let interpreted = interpreter.evaluate(&expression).unwrap();
 
-                    assert_eq!(interpreted, PartiallyInterpretedExpression::Bool(false));
+                    assert_eq!(interpreted, Value::Bool(false));
                 }
                 _ => panic!(),
             }
@@ -410,7 +408,7 @@ mod tests {
                 let mut interpreter = Interpreter::default();
                 let interpreted = interpreter.evaluate(&expression).unwrap();
 
-                assert_eq!(interpreted, PartiallyInterpretedExpression::Number(-1.0));
+                assert_eq!(interpreted, Value::Number(-1.0));
             }
             _ => panic!(),
         }

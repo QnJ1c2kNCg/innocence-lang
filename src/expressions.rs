@@ -1,5 +1,5 @@
 use crate::{
-    interpreter::PartiallyInterpretedExpression,
+    interpreter::Value,
     tokens::{Identifier, Token},
 };
 
