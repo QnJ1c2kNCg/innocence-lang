@@ -4,6 +4,7 @@ pub(crate) trait StatementVisitor<T> {
     fn visit_expression_stmt(&mut self, stmt: &Statement) -> T;
     fn visit_print_stmt(&mut self, stmt: &Statement) -> T;
     fn visit_let_stmt(&mut self, stmt: &Statement) -> T;
+    fn visit_block_stmt(&mut self, stmt: &Statement) -> T;
 }
 
 #[derive(Debug)]
@@ -14,6 +15,7 @@ pub(crate) enum Statement {
         name: Identifier,
         initializer: Expression,
     },
+    Block(Vec<Statement>),
 }
 
 impl Statement {
@@ -22,6 +24,7 @@ impl Statement {
             Statement::Expression(_) => visitor.visit_expression_stmt(self),
             Statement::Print(_) => visitor.visit_print_stmt(self),
             Statement::Let { .. } => visitor.visit_let_stmt(self),
+            Statement::Block(_) => visitor.visit_block_stmt(self),
         }
     }
 }

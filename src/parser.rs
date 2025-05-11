@@ -26,9 +26,10 @@ impl ParserError {
 program        → declaration* EOF ;
 declaration    → varDecl | statement ;
 varDecl        → "let" IDENTIFIER ( "=" expression )? ";" ;
-statement      → exprStmt | printStmt ;
+statement      → exprStmt | printStmt | block ;
 exprStmt       → expression ";" ;
 printStmt      → "print" expression ";" ;
+block          → "{" declaration* "}" ;
 expression     → assignment ;
 assignment     → IDENTIFIER "=" assignment | equality ;
 equality       → comparison ( ( "!=" | "==" ) comparison )* ;
@@ -100,6 +101,8 @@ impl<'a> Parser<'a> {
     fn statement(&self) -> Result<Statement> {
         if self.match_(&[TokenType::Print]) {
             self.print_statement()
+        } else if self.match_(&[TokenType::LeftBrace]) {
+            Ok(Statement::Block(self.block()?))
         } else {
             self.expression_statement()
         }
@@ -109,6 +112,19 @@ impl<'a> Parser<'a> {
         let expr = self.expression()?;
         self.consume_expected_token(&TokenType::Semicolon, "Exprect ';' after value")?;
         Ok(Statement::Print(expr))
+    }
+
+    /// Scoping block
+    fn block(&self) -> Result<Vec<Statement>> {
+        let mut statements = Vec::default();
+
+        while !self.check(&TokenType::RightBrace) && !self.is_at_end() {
+            statements.push(self.declaration()?);
+        }
+
+        self.consume_expected_token(&TokenType::RightBrace, "Expect '}' after block.")?;
+
+        Ok(statements)
     }
 
     fn expression_statement(&self) -> Result<Statement> {
@@ -346,7 +362,8 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{AstStringer, Scanner};
+    use crate::Scanner;
+    use crate::ast_stringer::AstStringer;
 
     use super::*;
 

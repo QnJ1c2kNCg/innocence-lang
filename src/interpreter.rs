@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, rc::Rc};
 
 use crate::{
     environment::Environment,
@@ -15,9 +15,8 @@ pub(crate) enum InterpreterError {
     UnknownVariable(Identifier),
 }
 
-#[derive(Default)]
 pub(crate) struct Interpreter {
-    environment: Environment,
+    environment: Rc<Environment>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -110,11 +109,20 @@ impl Value {
 }
 
 impl Interpreter {
+    pub(crate) fn new() -> Self {
+        Self {
+            environment: Rc::new(Environment::new_global()),
+        }
+    }
+
     pub(crate) fn interpret(&mut self, statements: &Vec<Statement>) -> Result<()> {
         for statement in statements {
             let res = self.execute(statement);
             if res.is_err() {
-                todo!("call report error and make sure to show the line number")
+                todo!(
+                    "call report error and make sure to show the line number: {:?}",
+                    res.unwrap_err()
+                )
             }
         }
         Ok(())
@@ -122,6 +130,31 @@ impl Interpreter {
 
     fn execute(&mut self, statement: &Statement) -> Result<()> {
         statement.accept(self)
+    }
+
+    fn execute_block(
+        &mut self,
+        statements: &Vec<Statement>,
+        new_environment: Rc<Environment>,
+    ) -> Result<()> {
+        let previous_environment = self.environment.clone();
+        self.environment = new_environment;
+
+        for statement in statements {
+            match self.execute(statement) {
+                Ok(_) => (),
+                Err(err) => {
+                    // TODO: I don't like this, very error prone.
+                    // Change the visit functios to take an environment instead
+                    self.environment = previous_environment;
+                    return Err(err);
+                }
+            }
+        }
+
+        // we reach the end of the block, we "pop" our environement
+        self.environment = previous_environment;
+        Ok(())
     }
 
     fn evaluate(&mut self, expr: &Expression) -> Result<Value> {
@@ -252,7 +285,6 @@ impl ExpressionVisitor<Result<Value>> for Interpreter {
             Expression::Variable { id } => self
                 .environment
                 .get(id)
-                .cloned()
                 .ok_or(InterpreterError::UnknownVariable(id.clone())),
             _ => unreachable!(),
         }
@@ -304,6 +336,16 @@ impl StatementVisitor<Result<()>> for Interpreter {
             _ => unreachable!(),
         }
     }
+
+    fn visit_block_stmt(&mut self, stmt: &Statement) -> Result<()> {
+        match stmt {
+            Statement::Block(statements) => self.execute_block(
+                statements,
+                Rc::new(Environment::new(self.environment.clone())),
+            ),
+            _ => unreachable!(),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -322,7 +364,7 @@ mod tests {
 
         match &statements[0] {
             Statement::Expression(expression) => {
-                let mut interpreter = Interpreter::default();
+                let mut interpreter = Interpreter::new();
                 let interpreted = interpreter.evaluate(&expression).unwrap();
 
                 assert_eq!(interpreted, Value::Number(2.5));
@@ -353,7 +395,7 @@ mod tests {
 
             match &statements[0] {
                 Statement::Expression(expression) => {
-                    let mut interpreter = Interpreter::default();
+                    let mut interpreter = Interpreter::new();
                     let interpreted = interpreter.evaluate(&expression).unwrap();
 
                     assert_eq!(interpreted, Value::Bool(true));
@@ -385,7 +427,7 @@ mod tests {
 
             match &statements[0] {
                 Statement::Expression(expression) => {
-                    let mut interpreter = Interpreter::default();
+                    let mut interpreter = Interpreter::new();
                     let interpreted = interpreter.evaluate(&expression).unwrap();
 
                     assert_eq!(interpreted, Value::Bool(false));
@@ -405,7 +447,7 @@ mod tests {
 
         match &statements[0] {
             Statement::Expression(expression) => {
-                let mut interpreter = Interpreter::default();
+                let mut interpreter = Interpreter::new();
                 let interpreted = interpreter.evaluate(&expression).unwrap();
 
                 assert_eq!(interpreted, Value::Number(-1.0));

@@ -26,14 +26,14 @@ fn main() {
 fn run_file(file_path: &String) {
     let source =
         std::fs::read_to_string(file_path).expect(&format!("Failed to read {}", file_path));
-    let mut interpreter = Interpreter::default();
+    let mut interpreter = Interpreter::new();
     run(&mut interpreter, source);
 }
 
 fn run_prompt() {
     let stdin = std::io::stdin();
     println!("Welcome to innocence's REPL");
-    let mut interpreter = Interpreter::default();
+    let mut interpreter = Interpreter::new();
     loop {
         print!("> ");
         let _ = std::io::stdout().flush();
@@ -64,7 +64,7 @@ fn run(interpreter: &mut Interpreter, source: String) {
     // println!("{}", ast_stringer.stringify(&ast_root_expr));
 
     // println!("Interpreter:");
-    // let mut interpreter =Interpreter::default();
+    // let mut interpreter =Interpreter::new();
     // let interpreted = interpreter.interpret(&ast_root_expr);
     // println!("{:?}\n", interpreted);
 }
