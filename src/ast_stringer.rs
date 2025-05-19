@@ -1,5 +1,5 @@
 use crate::{
-    environment::{self, Environment},
+    environment::Environment,
     expressions::{Expression, ExpressionVisitor},
 };
 

@@ -1,7 +1,7 @@
 use std::{fmt::Display, rc::Rc};
 
 use crate::{
-    environment::{self, Environment},
+    environment::Environment,
     expressions::{Expression, ExpressionVisitor},
     statements::{Statement, StatementVisitor},
     tokens::{Identifier, TokenType},
