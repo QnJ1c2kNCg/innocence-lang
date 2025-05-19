@@ -1,15 +1,17 @@
+use std::rc::Rc;
+
 use crate::{
     environment::Environment,
     tokens::{Identifier, Token},
 };
 
 pub(crate) trait ExpressionVisitor<T> {
-    fn visit_binary(&mut self, expr: &Expression, environment: &Environment) -> T;
-    fn visit_unary(&mut self, expr: &Expression, envenvironment: &Environment) -> T;
-    fn visit_grouping(&mut self, expr: &Expression, envenvironment: &Environment) -> T;
-    fn visit_literal(&mut self, expr: &Expression, envenvironment: &Environment) -> T;
-    fn visit_variable(&mut self, expr: &Expression, envenvironment: &Environment) -> T;
-    fn visit_assign(&mut self, expr: &Expression, envenvironment: &Environment) -> T;
+    fn visit_binary(&mut self, expr: &Expression, environment: &Rc<Environment>) -> T;
+    fn visit_unary(&mut self, expr: &Expression, envenvironment: &Rc<Environment>) -> T;
+    fn visit_grouping(&mut self, expr: &Expression, envenvironment: &Rc<Environment>) -> T;
+    fn visit_literal(&mut self, expr: &Expression, envenvironment: &Rc<Environment>) -> T;
+    fn visit_variable(&mut self, expr: &Expression, envenvironment: &Rc<Environment>) -> T;
+    fn visit_assign(&mut self, expr: &Expression, envenvironment: &Rc<Environment>) -> T;
 }
 
 #[derive(Debug, Clone)]
@@ -44,7 +46,7 @@ impl Expression {
     pub(crate) fn accept<T>(
         &self,
         visitor: &mut dyn ExpressionVisitor<T>,
-        environment: &Environment,
+        environment: &Rc<Environment>,
     ) -> T {
         match self {
             Expression::Binary { .. } => visitor.visit_binary(self, environment),

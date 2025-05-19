@@ -26,7 +26,8 @@ impl ParserError {
 program        → declaration* EOF ;
 declaration    → varDecl | statement ;
 varDecl        → "let" IDENTIFIER ( "=" expression )? ";" ;
-statement      → exprStmt | printStmt | block ;
+statement      → exprStmt | ifStmt | printStmt | block ;
+ifStmt         → "if" expression "{" statement "}" ( "else" "{" statement "}" )? ;
 exprStmt       → expression ";" ;
 printStmt      → "print" expression ";" ;
 block          → "{" declaration* "}" ;
@@ -99,13 +100,35 @@ impl<'a> Parser<'a> {
     }
 
     fn statement(&self) -> Result<Statement> {
-        if self.match_(&[TokenType::Print]) {
+        if self.match_(&[TokenType::If]) {
+            self.if_statement()
+        } else if self.match_(&[TokenType::Print]) {
             self.print_statement()
         } else if self.match_(&[TokenType::LeftBrace]) {
             Ok(Statement::Block(self.block()?))
         } else {
             self.expression_statement()
         }
+    }
+
+    fn if_statement(&self) -> Result<Statement> {
+        let condition = self.expression()?;
+
+        let if_branch = Box::new(self.statement()?);
+        let else_branch = if self.match_(&[TokenType::Else]) {
+            Some(Box::new(self.statement()?))
+        } else {
+            None
+        };
+
+        // TODO: proper error handling and check the else too
+        assert!(matches!(*if_branch, Statement::Block(_)));
+
+        Ok(Statement::If {
+            condition,
+            if_branch,
+            else_branch,
+        })
     }
 
     fn print_statement(&self) -> Result<Statement> {
@@ -362,6 +385,8 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
+    use std::rc::Rc;
+
     use crate::Scanner;
     use crate::ast_stringer::AstStringer;
     use crate::environment::Environment;
@@ -381,7 +406,7 @@ mod tests {
                 let mut ast_stringer = AstStringer {};
                 assert_eq!(
                     "(+ 1 (/ (* 2 3) 4))",
-                    ast_stringer.stringify(&expression, &Environment::new_global())
+                    ast_stringer.stringify(&expression, &Rc::new(Environment::new_global()))
                 );
             }
             _ => panic!(),
@@ -401,7 +426,7 @@ mod tests {
                 let mut ast_stringer = AstStringer {};
                 assert_eq!(
                     "(/ (* (group (+ 1 2)) 3) 4)",
-                    ast_stringer.stringify(&expression, &Environment::new_global())
+                    ast_stringer.stringify(&expression, &Rc::new(Environment::new_global()))
                 );
             }
             _ => panic!(),

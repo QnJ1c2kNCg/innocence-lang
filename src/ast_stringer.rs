@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use crate::{
     environment::Environment,
     expressions::{Expression, ExpressionVisitor},
@@ -6,7 +8,7 @@ use crate::{
 pub(crate) struct AstStringer {}
 
 impl AstStringer {
-    pub(crate) fn stringify(&mut self, expr: &Expression, environment: &Environment) -> String {
+    pub(crate) fn stringify(&mut self, expr: &Expression, environment: &Rc<Environment>) -> String {
         expr.accept(self, environment)
     }
 
@@ -14,7 +16,7 @@ impl AstStringer {
         &mut self,
         name: &str,
         exprs: Vec<&Expression>,
-        environment: &Environment,
+        environment: &Rc<Environment>,
     ) -> String {
         let mut str = String::new();
 
@@ -34,7 +36,7 @@ impl AstStringer {
 }
 
 impl ExpressionVisitor<String> for AstStringer {
-    fn visit_binary(&mut self, expr: &Expression, environment: &Environment) -> String {
+    fn visit_binary(&mut self, expr: &Expression, environment: &Rc<Environment>) -> String {
         match expr {
             Expression::Binary {
                 left,
@@ -51,7 +53,7 @@ impl ExpressionVisitor<String> for AstStringer {
         }
     }
 
-    fn visit_unary(&mut self, expr: &Expression, environment: &Environment) -> String {
+    fn visit_unary(&mut self, expr: &Expression, environment: &Rc<Environment>) -> String {
         match expr {
             Expression::Unary { operation, right } => {
                 return self.parenthesize(operation.lexeme().as_str(), vec![&right], environment);
@@ -60,7 +62,7 @@ impl ExpressionVisitor<String> for AstStringer {
         }
     }
 
-    fn visit_grouping(&mut self, expr: &Expression, environment: &Environment) -> String {
+    fn visit_grouping(&mut self, expr: &Expression, environment: &Rc<Environment>) -> String {
         match expr {
             Expression::Grouping { expr } => {
                 return self.parenthesize("group", vec![&expr], environment);
@@ -69,7 +71,7 @@ impl ExpressionVisitor<String> for AstStringer {
         }
     }
 
-    fn visit_literal(&mut self, expr: &Expression, _: &Environment) -> String {
+    fn visit_literal(&mut self, expr: &Expression, _: &Rc<Environment>) -> String {
         match expr {
             Expression::Literal { literal } => {
                 return literal.lexeme().to_owned();
@@ -78,7 +80,7 @@ impl ExpressionVisitor<String> for AstStringer {
         }
     }
 
-    fn visit_variable(&mut self, expr: &Expression, _: &Environment) -> String {
+    fn visit_variable(&mut self, expr: &Expression, _: &Rc<Environment>) -> String {
         match expr {
             Expression::Variable { id } => {
                 return format!("variable: {:?}", id);
@@ -87,7 +89,7 @@ impl ExpressionVisitor<String> for AstStringer {
         }
     }
 
-    fn visit_assign(&mut self, expr: &Expression, _: &Environment) -> String {
+    fn visit_assign(&mut self, expr: &Expression, _: &Rc<Environment>) -> String {
         match expr {
             Expression::Assign { id, value } => {
                 return format!("assign: {:?}, {:?}", id, value);
@@ -123,7 +125,7 @@ mod tests {
 
         assert_eq!(
             "(* (- 123) (group 45.67))",
-            ast_stringer.stringify(&test_expression, &Environment::new_global())
+            ast_stringer.stringify(&test_expression, &Rc::new(Environment::new_global()))
         );
     }
 }

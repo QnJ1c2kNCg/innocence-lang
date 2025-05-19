@@ -128,7 +128,7 @@ impl Interpreter {
         Ok(())
     }
 
-    fn execute(&mut self, statement: &Statement, environment: &Environment) -> Result<()> {
+    fn execute(&mut self, statement: &Statement, environment: &Rc<Environment>) -> Result<()> {
         statement.accept(self, environment)
     }
 
@@ -144,13 +144,13 @@ impl Interpreter {
         Ok(())
     }
 
-    fn evaluate(&mut self, expr: &Expression, environment: &Environment) -> Result<Value> {
+    fn evaluate(&mut self, expr: &Expression, environment: &Rc<Environment>) -> Result<Value> {
         expr.accept(self, environment)
     }
 }
 
 impl ExpressionVisitor<Result<Value>> for Interpreter {
-    fn visit_binary(&mut self, expr: &Expression, environment: &Environment) -> Result<Value> {
+    fn visit_binary(&mut self, expr: &Expression, environment: &Rc<Environment>) -> Result<Value> {
         match expr {
             Expression::Binary {
                 left,
@@ -225,7 +225,7 @@ impl ExpressionVisitor<Result<Value>> for Interpreter {
         }
     }
 
-    fn visit_unary(&mut self, expr: &Expression, environment: &Environment) -> Result<Value> {
+    fn visit_unary(&mut self, expr: &Expression, environment: &Rc<Environment>) -> Result<Value> {
         match expr {
             Expression::Unary { operation, right } => {
                 let right = self.evaluate(right, environment)?;
@@ -245,14 +245,18 @@ impl ExpressionVisitor<Result<Value>> for Interpreter {
         }
     }
 
-    fn visit_grouping(&mut self, expr: &Expression, environment: &Environment) -> Result<Value> {
+    fn visit_grouping(
+        &mut self,
+        expr: &Expression,
+        environment: &Rc<Environment>,
+    ) -> Result<Value> {
         match expr {
             Expression::Grouping { expr } => self.evaluate(&expr, environment),
             _ => unreachable!(),
         }
     }
 
-    fn visit_literal(&mut self, expr: &Expression, _: &Environment) -> Result<Value> {
+    fn visit_literal(&mut self, expr: &Expression, _: &Rc<Environment>) -> Result<Value> {
         match expr {
             Expression::Literal { literal } => match &literal.token_type {
                 TokenType::Number(number) => Ok(Value::Number(*number)),
@@ -265,7 +269,11 @@ impl ExpressionVisitor<Result<Value>> for Interpreter {
         }
     }
 
-    fn visit_variable(&mut self, expr: &Expression, environment: &Environment) -> Result<Value> {
+    fn visit_variable(
+        &mut self,
+        expr: &Expression,
+        environment: &Rc<Environment>,
+    ) -> Result<Value> {
         match expr {
             // TODO: I would like unknown variable errors to be detected
             // at scan time, not at runtime.
@@ -276,7 +284,7 @@ impl ExpressionVisitor<Result<Value>> for Interpreter {
         }
     }
 
-    fn visit_assign(&mut self, expr: &Expression, environment: &Environment) -> Result<Value> {
+    fn visit_assign(&mut self, expr: &Expression, environment: &Rc<Environment>) -> Result<Value> {
         match expr {
             Expression::Assign { id, value } => {
                 let value = self.evaluate(value, environment)?;
@@ -294,7 +302,11 @@ impl ExpressionVisitor<Result<Value>> for Interpreter {
 }
 
 impl StatementVisitor<Result<()>> for Interpreter {
-    fn visit_expression_stmt(&mut self, stmt: &Statement, environment: &Environment) -> Result<()> {
+    fn visit_expression_stmt(
+        &mut self,
+        stmt: &Statement,
+        environment: &Rc<Environment>,
+    ) -> Result<()> {
         match stmt {
             // XXX: Kinda weird that we are not returning anything here, L3441
             Statement::Expression(expression) => self.evaluate(expression, environment).map(|_| ()),
@@ -302,7 +314,7 @@ impl StatementVisitor<Result<()>> for Interpreter {
         }
     }
 
-    fn visit_print_stmt(&mut self, stmt: &Statement, environment: &Environment) -> Result<()> {
+    fn visit_print_stmt(&mut self, stmt: &Statement, environment: &Rc<Environment>) -> Result<()> {
         match stmt {
             Statement::Print(expression) => {
                 let evaluated = self.evaluate(expression, environment)?;
@@ -312,7 +324,7 @@ impl StatementVisitor<Result<()>> for Interpreter {
         }
     }
 
-    fn visit_let_stmt(&mut self, stmt: &Statement, environment: &Environment) -> Result<()> {
+    fn visit_let_stmt(&mut self, stmt: &Statement, environment: &Rc<Environment>) -> Result<()> {
         match stmt {
             Statement::Let { name, initializer } => {
                 let value = self.evaluate(initializer, environment)?;
@@ -323,12 +335,30 @@ impl StatementVisitor<Result<()>> for Interpreter {
         }
     }
 
-    fn visit_block_stmt(&mut self, stmt: &Statement, environment: &Environment) -> Result<()> {
+    fn visit_block_stmt(&mut self, stmt: &Statement, environment: &Rc<Environment>) -> Result<()> {
         match stmt {
-            Statement::Block(statements) => self.execute_block(
-                statements,
-                Rc::new(Environment::new(self.root_environment.clone())),
-            ),
+            Statement::Block(statements) => {
+                self.execute_block(statements, Rc::new(Environment::new(environment.clone())))
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn visit_if_stmt(&mut self, stmt: &Statement, environment: &Rc<Environment>) -> Result<()> {
+        match stmt {
+            Statement::If {
+                condition,
+                if_branch,
+                else_branch,
+            } => {
+                if self.evaluate(condition, environment)?.unwrap_bool()? {
+                    self.execute(if_branch, environment)
+                } else if else_branch.is_some() {
+                    self.execute(else_branch.as_ref().unwrap(), environment)
+                } else {
+                    Ok(())
+                }
+            }
             _ => unreachable!(),
         }
     }
@@ -352,7 +382,7 @@ mod tests {
             Statement::Expression(expression) => {
                 let mut interpreter = Interpreter::new();
                 let interpreted = interpreter
-                    .evaluate(&expression, &Environment::new_global())
+                    .evaluate(&expression, &Rc::new(Environment::new_global()))
                     .unwrap();
 
                 assert_eq!(interpreted, Value::Number(2.5));
@@ -385,7 +415,7 @@ mod tests {
                 Statement::Expression(expression) => {
                     let mut interpreter = Interpreter::new();
                     let interpreted = interpreter
-                        .evaluate(&expression, &Environment::new_global())
+                        .evaluate(&expression, &Rc::new(Environment::new_global()))
                         .unwrap();
 
                     assert_eq!(interpreted, Value::Bool(true));
@@ -419,7 +449,7 @@ mod tests {
                 Statement::Expression(expression) => {
                     let mut interpreter = Interpreter::new();
                     let interpreted = interpreter
-                        .evaluate(&expression, &Environment::new_global())
+                        .evaluate(&expression, &Rc::new(Environment::new_global()))
                         .unwrap();
 
                     assert_eq!(interpreted, Value::Bool(false));
@@ -441,7 +471,7 @@ mod tests {
             Statement::Expression(expression) => {
                 let mut interpreter = Interpreter::new();
                 let interpreted = interpreter
-                    .evaluate(&expression, &Environment::new_global())
+                    .evaluate(&expression, &Rc::new(Environment::new_global()))
                     .unwrap();
 
                 assert_eq!(interpreted, Value::Number(-1.0));
