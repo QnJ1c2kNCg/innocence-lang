@@ -1,7 +1,7 @@
 use std::{fmt::Display, rc::Rc};
 
 use crate::{
-    environment::Environment,
+    environment::{self, Environment},
     expressions::{Expression, ExpressionVisitor},
     statements::{Statement, StatementVisitor},
     tokens::{Identifier, TokenType},
@@ -16,7 +16,7 @@ pub(crate) enum InterpreterError {
 }
 
 pub(crate) struct Interpreter {
-    environment: Rc<Environment>,
+    root_environment: Rc<Environment>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -111,13 +111,13 @@ impl Value {
 impl Interpreter {
     pub(crate) fn new() -> Self {
         Self {
-            environment: Rc::new(Environment::new_global()),
+            root_environment: Rc::new(Environment::new_global()),
         }
     }
 
     pub(crate) fn interpret(&mut self, statements: &Vec<Statement>) -> Result<()> {
         for statement in statements {
-            let res = self.execute(statement);
+            let res = self.execute(statement, &self.root_environment.clone());
             if res.is_err() {
                 todo!(
                     "call report error and make sure to show the line number: {:?}",
@@ -128,50 +128,37 @@ impl Interpreter {
         Ok(())
     }
 
-    fn execute(&mut self, statement: &Statement) -> Result<()> {
-        statement.accept(self)
+    fn execute(&mut self, statement: &Statement, environment: &Environment) -> Result<()> {
+        statement.accept(self, environment)
     }
 
     fn execute_block(
         &mut self,
         statements: &Vec<Statement>,
-        new_environment: Rc<Environment>,
+        environment: Rc<Environment>,
     ) -> Result<()> {
-        let previous_environment = self.environment.clone();
-        self.environment = new_environment;
-
         for statement in statements {
-            match self.execute(statement) {
-                Ok(_) => (),
-                Err(err) => {
-                    // TODO: I don't like this, very error prone.
-                    // Change the visit functios to take an environment instead
-                    self.environment = previous_environment;
-                    return Err(err);
-                }
-            }
+            self.execute(statement, &environment)?;
         }
 
-        // we reach the end of the block, we "pop" our environement
-        self.environment = previous_environment;
         Ok(())
     }
 
-    fn evaluate(&mut self, expr: &Expression) -> Result<Value> {
-        expr.accept(self)
+    fn evaluate(&mut self, expr: &Expression, environment: &Environment) -> Result<Value> {
+        expr.accept(self, environment)
     }
 }
 
 impl ExpressionVisitor<Result<Value>> for Interpreter {
-    fn visit_binary(&mut self, expr: &Expression) -> Result<Value> {
+    fn visit_binary(&mut self, expr: &Expression, environment: &Environment) -> Result<Value> {
         match expr {
             Expression::Binary {
                 left,
                 operation,
                 right,
             } => {
-                let left = self.evaluate(left)?;
-                let right = self.evaluate(right)?;
+                let left = self.evaluate(left, environment)?;
+                let right = self.evaluate(right, environment)?;
                 match operation.token_type {
                     TokenType::Minus => {
                         let left = left.unwrap_number()?;
@@ -238,10 +225,10 @@ impl ExpressionVisitor<Result<Value>> for Interpreter {
         }
     }
 
-    fn visit_unary(&mut self, expr: &Expression) -> Result<Value> {
+    fn visit_unary(&mut self, expr: &Expression, environment: &Environment) -> Result<Value> {
         match expr {
             Expression::Unary { operation, right } => {
-                let right = self.evaluate(right)?;
+                let right = self.evaluate(right, environment)?;
                 match operation.token_type {
                     TokenType::Minus => {
                         let number = right.unwrap_number()?;
@@ -258,14 +245,14 @@ impl ExpressionVisitor<Result<Value>> for Interpreter {
         }
     }
 
-    fn visit_grouping(&mut self, expr: &Expression) -> Result<Value> {
+    fn visit_grouping(&mut self, expr: &Expression, environment: &Environment) -> Result<Value> {
         match expr {
-            Expression::Grouping { expr } => self.evaluate(&expr),
+            Expression::Grouping { expr } => self.evaluate(&expr, environment),
             _ => unreachable!(),
         }
     }
 
-    fn visit_literal(&mut self, expr: &Expression) -> Result<Value> {
+    fn visit_literal(&mut self, expr: &Expression, _: &Environment) -> Result<Value> {
         match expr {
             Expression::Literal { literal } => match &literal.token_type {
                 TokenType::Number(number) => Ok(Value::Number(*number)),
@@ -278,23 +265,22 @@ impl ExpressionVisitor<Result<Value>> for Interpreter {
         }
     }
 
-    fn visit_variable(&mut self, expr: &Expression) -> Result<Value> {
+    fn visit_variable(&mut self, expr: &Expression, environment: &Environment) -> Result<Value> {
         match expr {
             // TODO: I would like unknown variable errors to be detected
             // at scan time, not at runtime.
-            Expression::Variable { id } => self
-                .environment
+            Expression::Variable { id } => environment
                 .get(id)
                 .ok_or(InterpreterError::UnknownVariable(id.clone())),
             _ => unreachable!(),
         }
     }
 
-    fn visit_assign(&mut self, expr: &Expression) -> Result<Value> {
+    fn visit_assign(&mut self, expr: &Expression, environment: &Environment) -> Result<Value> {
         match expr {
             Expression::Assign { id, value } => {
-                let value = self.evaluate(value)?;
-                self.environment
+                let value = self.evaluate(value, environment)?;
+                environment
                     .assign(id.clone(), value.clone())
                     .map_err(|_err| {
                         // TODO: log
@@ -308,40 +294,40 @@ impl ExpressionVisitor<Result<Value>> for Interpreter {
 }
 
 impl StatementVisitor<Result<()>> for Interpreter {
-    fn visit_expression_stmt(&mut self, stmt: &Statement) -> Result<()> {
+    fn visit_expression_stmt(&mut self, stmt: &Statement, environment: &Environment) -> Result<()> {
         match stmt {
             // XXX: Kinda weird that we are not returning anything here, L3441
-            Statement::Expression(expression) => self.evaluate(expression).map(|_| ()),
+            Statement::Expression(expression) => self.evaluate(expression, environment).map(|_| ()),
             _ => unreachable!(),
         }
     }
 
-    fn visit_print_stmt(&mut self, stmt: &Statement) -> Result<()> {
+    fn visit_print_stmt(&mut self, stmt: &Statement, environment: &Environment) -> Result<()> {
         match stmt {
             Statement::Print(expression) => {
-                let evaluated = self.evaluate(expression)?;
+                let evaluated = self.evaluate(expression, environment)?;
                 Ok(println!("{}", evaluated))
             }
             _ => unreachable!(),
         }
     }
 
-    fn visit_let_stmt(&mut self, stmt: &Statement) -> Result<()> {
+    fn visit_let_stmt(&mut self, stmt: &Statement, environment: &Environment) -> Result<()> {
         match stmt {
             Statement::Let { name, initializer } => {
-                let value = self.evaluate(initializer)?;
-                self.environment.define(name.clone(), value);
+                let value = self.evaluate(initializer, environment)?;
+                environment.define(name.clone(), value);
                 Ok(())
             }
             _ => unreachable!(),
         }
     }
 
-    fn visit_block_stmt(&mut self, stmt: &Statement) -> Result<()> {
+    fn visit_block_stmt(&mut self, stmt: &Statement, environment: &Environment) -> Result<()> {
         match stmt {
             Statement::Block(statements) => self.execute_block(
                 statements,
-                Rc::new(Environment::new(self.environment.clone())),
+                Rc::new(Environment::new(self.root_environment.clone())),
             ),
             _ => unreachable!(),
         }
@@ -365,7 +351,9 @@ mod tests {
         match &statements[0] {
             Statement::Expression(expression) => {
                 let mut interpreter = Interpreter::new();
-                let interpreted = interpreter.evaluate(&expression).unwrap();
+                let interpreted = interpreter
+                    .evaluate(&expression, &Environment::new_global())
+                    .unwrap();
 
                 assert_eq!(interpreted, Value::Number(2.5));
             }
@@ -396,7 +384,9 @@ mod tests {
             match &statements[0] {
                 Statement::Expression(expression) => {
                     let mut interpreter = Interpreter::new();
-                    let interpreted = interpreter.evaluate(&expression).unwrap();
+                    let interpreted = interpreter
+                        .evaluate(&expression, &Environment::new_global())
+                        .unwrap();
 
                     assert_eq!(interpreted, Value::Bool(true));
                 }
@@ -428,7 +418,9 @@ mod tests {
             match &statements[0] {
                 Statement::Expression(expression) => {
                     let mut interpreter = Interpreter::new();
-                    let interpreted = interpreter.evaluate(&expression).unwrap();
+                    let interpreted = interpreter
+                        .evaluate(&expression, &Environment::new_global())
+                        .unwrap();
 
                     assert_eq!(interpreted, Value::Bool(false));
                 }
@@ -448,7 +440,9 @@ mod tests {
         match &statements[0] {
             Statement::Expression(expression) => {
                 let mut interpreter = Interpreter::new();
-                let interpreted = interpreter.evaluate(&expression).unwrap();
+                let interpreted = interpreter
+                    .evaluate(&expression, &Environment::new_global())
+                    .unwrap();
 
                 assert_eq!(interpreted, Value::Number(-1.0));
             }

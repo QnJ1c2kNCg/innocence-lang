@@ -1,12 +1,15 @@
-use crate::tokens::{Identifier, Token};
+use crate::{
+    environment::{self, Environment},
+    tokens::{Identifier, Token},
+};
 
 pub(crate) trait ExpressionVisitor<T> {
-    fn visit_binary(&mut self, expr: &Expression) -> T;
-    fn visit_unary(&mut self, expr: &Expression) -> T;
-    fn visit_grouping(&mut self, expr: &Expression) -> T;
-    fn visit_literal(&mut self, expr: &Expression) -> T;
-    fn visit_variable(&mut self, expr: &Expression) -> T;
-    fn visit_assign(&mut self, expr: &Expression) -> T;
+    fn visit_binary(&mut self, expr: &Expression, environment: &Environment) -> T;
+    fn visit_unary(&mut self, expr: &Expression, envenvironment: &Environment) -> T;
+    fn visit_grouping(&mut self, expr: &Expression, envenvironment: &Environment) -> T;
+    fn visit_literal(&mut self, expr: &Expression, envenvironment: &Environment) -> T;
+    fn visit_variable(&mut self, expr: &Expression, envenvironment: &Environment) -> T;
+    fn visit_assign(&mut self, expr: &Expression, envenvironment: &Environment) -> T;
 }
 
 #[derive(Debug, Clone)]
@@ -38,14 +41,18 @@ pub(crate) enum Expression {
 }
 
 impl Expression {
-    pub(crate) fn accept<T>(&self, visitor: &mut dyn ExpressionVisitor<T>) -> T {
+    pub(crate) fn accept<T>(
+        &self,
+        visitor: &mut dyn ExpressionVisitor<T>,
+        environment: &Environment,
+    ) -> T {
         match self {
-            Expression::Binary { .. } => visitor.visit_binary(self),
-            Expression::Unary { .. } => visitor.visit_unary(self),
-            Expression::Grouping { .. } => visitor.visit_grouping(self),
-            Expression::Literal { .. } => visitor.visit_literal(self),
-            Expression::Variable { .. } => visitor.visit_variable(self),
-            Expression::Assign { .. } => visitor.visit_assign(self),
+            Expression::Binary { .. } => visitor.visit_binary(self, environment),
+            Expression::Unary { .. } => visitor.visit_unary(self, environment),
+            Expression::Grouping { .. } => visitor.visit_grouping(self, environment),
+            Expression::Literal { .. } => visitor.visit_literal(self, environment),
+            Expression::Variable { .. } => visitor.visit_variable(self, environment),
+            Expression::Assign { .. } => visitor.visit_assign(self, environment),
         }
     }
 }

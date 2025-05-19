@@ -1,13 +1,21 @@
-use crate::expressions::{Expression, ExpressionVisitor};
+use crate::{
+    environment::{self, Environment},
+    expressions::{Expression, ExpressionVisitor},
+};
 
 pub(crate) struct AstStringer {}
 
 impl AstStringer {
-    pub(crate) fn stringify(&mut self, expr: &Expression) -> String {
-        expr.accept(self)
+    pub(crate) fn stringify(&mut self, expr: &Expression, environment: &Environment) -> String {
+        expr.accept(self, environment)
     }
 
-    fn parenthesize(&mut self, name: &str, exprs: Vec<&Expression>) -> String {
+    fn parenthesize(
+        &mut self,
+        name: &str,
+        exprs: Vec<&Expression>,
+        environment: &Environment,
+    ) -> String {
         let mut str = String::new();
 
         str.push('(');
@@ -15,7 +23,7 @@ impl AstStringer {
         for expr in exprs {
             str.push(' ');
             str.push_str(
-                expr.accept(self as &mut dyn ExpressionVisitor<String>)
+                expr.accept(self as &mut dyn ExpressionVisitor<String>, environment)
                     .as_str(),
             );
         }
@@ -26,38 +34,42 @@ impl AstStringer {
 }
 
 impl ExpressionVisitor<String> for AstStringer {
-    fn visit_binary(&mut self, expr: &Expression) -> String {
+    fn visit_binary(&mut self, expr: &Expression, environment: &Environment) -> String {
         match expr {
             Expression::Binary {
                 left,
                 operation,
                 right,
             } => {
-                return self.parenthesize(operation.lexeme().as_str(), vec![&left, &right]);
+                return self.parenthesize(
+                    operation.lexeme().as_str(),
+                    vec![&left, &right],
+                    environment,
+                );
             }
             _ => unreachable!(),
         }
     }
 
-    fn visit_unary(&mut self, expr: &Expression) -> String {
+    fn visit_unary(&mut self, expr: &Expression, environment: &Environment) -> String {
         match expr {
             Expression::Unary { operation, right } => {
-                return self.parenthesize(operation.lexeme().as_str(), vec![&right]);
+                return self.parenthesize(operation.lexeme().as_str(), vec![&right], environment);
             }
             _ => unreachable!(),
         }
     }
 
-    fn visit_grouping(&mut self, expr: &Expression) -> String {
+    fn visit_grouping(&mut self, expr: &Expression, environment: &Environment) -> String {
         match expr {
             Expression::Grouping { expr } => {
-                return self.parenthesize("group", vec![&expr]);
+                return self.parenthesize("group", vec![&expr], environment);
             }
             _ => unreachable!(),
         }
     }
 
-    fn visit_literal(&mut self, expr: &Expression) -> String {
+    fn visit_literal(&mut self, expr: &Expression, _: &Environment) -> String {
         match expr {
             Expression::Literal { literal } => {
                 return literal.lexeme().to_owned();
@@ -66,7 +78,7 @@ impl ExpressionVisitor<String> for AstStringer {
         }
     }
 
-    fn visit_variable(&mut self, expr: &Expression) -> String {
+    fn visit_variable(&mut self, expr: &Expression, _: &Environment) -> String {
         match expr {
             Expression::Variable { id } => {
                 return format!("variable: {:?}", id);
@@ -75,7 +87,7 @@ impl ExpressionVisitor<String> for AstStringer {
         }
     }
 
-    fn visit_assign(&mut self, expr: &Expression) -> String {
+    fn visit_assign(&mut self, expr: &Expression, _: &Environment) -> String {
         match expr {
             Expression::Assign { id, value } => {
                 return format!("assign: {:?}, {:?}", id, value);
@@ -111,7 +123,7 @@ mod tests {
 
         assert_eq!(
             "(* (- 123) (group 45.67))",
-            ast_stringer.stringify(&test_expression)
+            ast_stringer.stringify(&test_expression, &Environment::new_global())
         );
     }
 }

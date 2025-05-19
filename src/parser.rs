@@ -364,6 +364,7 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::Scanner;
     use crate::ast_stringer::AstStringer;
+    use crate::environment::Environment;
 
     use super::*;
 
@@ -378,7 +379,10 @@ mod tests {
         match &statements[0] {
             Statement::Expression(expression) => {
                 let mut ast_stringer = AstStringer {};
-                assert_eq!("(+ 1 (/ (* 2 3) 4))", ast_stringer.stringify(&expression));
+                assert_eq!(
+                    "(+ 1 (/ (* 2 3) 4))",
+                    ast_stringer.stringify(&expression, &Environment::new_global())
+                );
             }
             _ => panic!(),
         }
@@ -397,7 +401,7 @@ mod tests {
                 let mut ast_stringer = AstStringer {};
                 assert_eq!(
                     "(/ (* (group (+ 1 2)) 3) 4)",
-                    ast_stringer.stringify(&expression)
+                    ast_stringer.stringify(&expression, &Environment::new_global())
                 );
             }
             _ => panic!(),
