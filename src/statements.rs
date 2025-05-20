@@ -28,6 +28,11 @@ pub(crate) enum Statement {
         if_branch: Box<Statement>,
         else_branch: Option<Box<Statement>>,
     },
+    /// `while`` statement
+    While {
+        condition: Expression,
+        body: Box<Statement>,
+    },
 }
 
 /// Visitor pattern trait for something that can visit a statement. This is implemented by
@@ -38,6 +43,7 @@ pub(crate) trait StatementVisitor<T> {
     fn visit_let_stmt(&mut self, stmt: &Statement, environment: &Rc<Environment>) -> T;
     fn visit_block_stmt(&mut self, stmt: &Statement, environment: &Rc<Environment>) -> T;
     fn visit_if_stmt(&mut self, stmt: &Statement, environment: &Rc<Environment>) -> T;
+    fn visit_while_stmt(&mut self, stmt: &Statement, environment: &Rc<Environment>) -> T;
 }
 
 impl Statement {
@@ -55,6 +61,7 @@ impl Statement {
             Statement::Let { .. } => visitor.visit_let_stmt(self, environment),
             Statement::Block(_) => visitor.visit_block_stmt(self, environment),
             Statement::If { .. } => visitor.visit_if_stmt(self, environment),
+            Statement::While { .. } => visitor.visit_while_stmt(self, environment),
         }
     }
 }

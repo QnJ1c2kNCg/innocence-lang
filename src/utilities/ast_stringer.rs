@@ -98,6 +98,19 @@ impl ExpressionVisitor<String> for AstStringer {
             _ => unreachable!(),
         }
     }
+
+    fn visit_logical(&mut self, expr: &Expression, _: &Rc<Environment>) -> String {
+        match expr {
+            Expression::Logical {
+                left,
+                operation,
+                right,
+            } => {
+                return format!("logical: {:?}, {:?}, {:?}", left, operation, right);
+            }
+            _ => unreachable!(),
+        }
+    }
 }
 
 #[cfg(test)]

@@ -408,6 +408,18 @@ impl StatementVisitor<Result<()>> for Interpreter {
             _ => unreachable!(),
         }
     }
+
+    fn visit_while_stmt(&mut self, stmt: &Statement, environment: &Rc<Environment>) -> Result<()> {
+        match stmt {
+            Statement::While { condition, body } => {
+                while self.evaluate(condition, environment)?.unwrap_bool()? {
+                    self.execute(body, environment)?;
+                }
+            }
+            _ => unreachable!(),
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]

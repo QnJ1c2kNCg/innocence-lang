@@ -26,7 +26,8 @@ impl ParserError {
 program        → declaration* EOF ;
 declaration    → varDecl | statement ;
 varDecl        → "let" IDENTIFIER ( "=" expression )? ";" ;
-statement      → exprStmt | ifStmt | printStmt | block ;
+statement      → exprStmt | ifStmt | printStmt | whileStmt | block ;
+whileStmt      → "while" expression "{" statement "}" ;
 ifStmt         → "if" expression "{" statement "}" ( "else" "{" statement "}" )? ;
 exprStmt       → expression ";" ;
 printStmt      → "print" expression ";" ;
@@ -106,6 +107,8 @@ impl<'a> Parser<'a> {
             self.if_statement()
         } else if self.match_(&[TokenType::Print]) {
             self.print_statement()
+        } else if self.match_(&[TokenType::While]) {
+            self.while_statement()
         } else if self.match_(&[TokenType::LeftBrace]) {
             Ok(Statement::Block(self.block()?))
         } else {
@@ -137,6 +140,17 @@ impl<'a> Parser<'a> {
         let expr = self.expression()?;
         self.consume_expected_token(&TokenType::Semicolon, "Exprect ';' after value")?;
         Ok(Statement::Print(expr))
+    }
+
+    fn while_statement(&self) -> Result<Statement> {
+        let condition = self.expression()?;
+
+        let body = Box::new(self.statement()?);
+
+        // TODO: proper error handling and check the else too
+        assert!(matches!(*body, Statement::Block(_)));
+
+        Ok(Statement::While { condition, body })
     }
 
     /// Scoping block
