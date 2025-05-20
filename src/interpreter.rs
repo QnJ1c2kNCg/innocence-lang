@@ -15,10 +15,13 @@ pub(crate) enum InterpreterError {
     UnknownVariable(Identifier),
 }
 
+/// Construct that interprets innocence code.
 pub(crate) struct Interpreter {
+    /// Pointer to the global [`Environment`].
     root_environment: Rc<Environment>,
 }
 
+/// Represents a value, this is what an [`Expression`] evaluates to.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum Value {
     String(String),
@@ -115,6 +118,9 @@ impl Interpreter {
         }
     }
 
+    /// Entry point of the interpreter, this takes a list of statements (the source code)
+    /// and interprets it. This is done by executing the statements and evaluating the expressions
+    /// contained in those statements.
     pub(crate) fn interpret(&mut self, statements: &Vec<Statement>) -> Result<()> {
         for statement in statements {
             let res = self.execute(statement, &self.root_environment.clone());
@@ -128,10 +134,14 @@ impl Interpreter {
         Ok(())
     }
 
+    /// Executes a single statement, the [`Interpreter`] implements [`StatementVisitor`], so this
+    /// function is basically just visiting the statement. An [`Environment`] is passed in since
+    /// the statement might require reading/writing variables.
     fn execute(&mut self, statement: &Statement, environment: &Rc<Environment>) -> Result<()> {
         statement.accept(self, environment)
     }
 
+    /// Executes a list (block) of statements within one [`Environment`].
     fn execute_block(
         &mut self,
         statements: &Vec<Statement>,
@@ -144,6 +154,9 @@ impl Interpreter {
         Ok(())
     }
 
+    /// Evaluate an [`Expression`] to produce a [`Value`]. Note that this can/will recurse, for instance
+    /// calling `evaluate` on a [`Expression::Grouping`] expression, will return in a subsequent call to
+    /// `evaluate` to what is _contained_ in the grouping, etc.
     fn evaluate(&mut self, expr: &Expression, environment: &Rc<Environment>) -> Result<Value> {
         expr.accept(self, environment)
     }
@@ -308,7 +321,6 @@ impl StatementVisitor<Result<()>> for Interpreter {
         environment: &Rc<Environment>,
     ) -> Result<()> {
         match stmt {
-            // XXX: Kinda weird that we are not returning anything here, L3441
             Statement::Expression(expression) => self.evaluate(expression, environment).map(|_| ()),
             _ => unreachable!(),
         }
