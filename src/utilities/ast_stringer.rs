@@ -1,3 +1,4 @@
+//! Utility that converts an AST to a human readable format
 use std::rc::Rc;
 
 use crate::{
@@ -98,6 +99,7 @@ impl ExpressionVisitor<String> for AstStringer {
         }
     }
 }
+
 #[cfg(test)]
 mod tests {
     use crate::tokens::{Location, Token, TokenType};

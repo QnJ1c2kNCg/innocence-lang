@@ -1,4 +1,4 @@
-mod ast_stringer;
+//! Entry point of the innocence interpreter.
 mod environment;
 mod expressions;
 mod interpreter;
@@ -7,6 +7,7 @@ mod parser;
 mod scanner;
 mod statements;
 mod tokens;
+mod utilities;
 
 use std::{env, io::Write};
 
@@ -24,8 +25,8 @@ fn main() {
 }
 
 fn run_file(file_path: &String) {
-    let source =
-        std::fs::read_to_string(file_path).expect(&format!("Failed to read {}", file_path));
+    let source = std::fs::read_to_string(file_path)
+        .unwrap_or_else(|_| panic!("Failed to read {}", file_path));
     let mut interpreter = Interpreter::new();
     run(&mut interpreter, source);
 }

@@ -388,8 +388,8 @@ mod tests {
     use std::rc::Rc;
 
     use crate::Scanner;
-    use crate::ast_stringer::AstStringer;
     use crate::environment::Environment;
+    use crate::utilities::ast_stringer::AstStringer;
 
     use super::*;
 
