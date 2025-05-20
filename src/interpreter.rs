@@ -238,6 +238,40 @@ impl ExpressionVisitor<Result<Value>> for Interpreter {
         }
     }
 
+    fn visit_logical(&mut self, expr: &Expression, environment: &Rc<Environment>) -> Result<Value> {
+        match expr {
+            Expression::Logical {
+                left,
+                operation,
+                right,
+            } => {
+                let left = self.evaluate(left, environment)?;
+                match operation.token_type {
+                    TokenType::Or => {
+                        if left.unwrap_bool()? {
+                            // this is short-circuiting, if it's a logical `or` and the first
+                            // term is true the whole expression will be true
+                            Ok(left)
+                        } else {
+                            self.evaluate(right, environment)
+                        }
+                    }
+                    TokenType::And => {
+                        if !left.unwrap_bool()? {
+                            // this is short-circuiting, if it's a logical `and` and the first
+                            // term is false the whole expression will be false
+                            Ok(left)
+                        } else {
+                            self.evaluate(right, environment)
+                        }
+                    }
+                    _ => unreachable!(),
+                }
+            }
+            _ => unreachable!(),
+        }
+    }
+
     fn visit_unary(&mut self, expr: &Expression, environment: &Rc<Environment>) -> Result<Value> {
         match expr {
             Expression::Unary { operation, right } => {

@@ -32,7 +32,9 @@ exprStmt       → expression ";" ;
 printStmt      → "print" expression ";" ;
 block          → "{" declaration* "}" ;
 expression     → assignment ;
-assignment     → IDENTIFIER "=" assignment | equality ;
+assignment     → IDENTIFIER "=" assignment | logic_or ;
+logic_or       → logic_and ( "or" logic_and )* ;
+logic_and      → equality ( "and" equality )* ;
 equality       → comparison ( ( "!=" | "==" ) comparison )* ;
 comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 term           → factor ( ( "-" | "+" ) factor )* ;
@@ -161,7 +163,7 @@ impl<'a> Parser<'a> {
     }
 
     fn assignment(&self) -> Result<Expression> {
-        let expr = self.equality()?;
+        let expr = self.or()?;
 
         // We use recursion to handle unbounded l-value assignments
         if self.match_(&[TokenType::Equal]) {
@@ -174,9 +176,43 @@ impl<'a> Parser<'a> {
                 })
             } else {
                 Err(ParserError::DoesNotRequireSynchronization(
-                    "Invalid assignemnt target.".to_owned(),
+                    "Invalid assignment target.".to_owned(),
                 ))
             };
+        }
+
+        Ok(expr)
+    }
+
+    fn or(&self) -> Result<Expression> {
+        let mut expr = self.and()?;
+
+        while self.match_(&[TokenType::Or]) {
+            let operation = self.previous();
+            let right = self.and()?;
+
+            expr = Expression::Logical {
+                left: Box::new(expr),
+                operation: operation.clone(),
+                right: Box::new(right),
+            }
+        }
+
+        Ok(expr)
+    }
+
+    fn and(&self) -> Result<Expression> {
+        let mut expr = self.equality()?;
+
+        while self.match_(&[TokenType::And]) {
+            let operation = self.previous();
+            let right = self.equality()?;
+
+            expr = Expression::Logical {
+                left: Box::new(expr),
+                operation: operation.clone(),
+                right: Box::new(right),
+            }
         }
 
         Ok(expr)

@@ -17,6 +17,12 @@ pub(crate) enum Expression {
         operation: Token,
         right: Box<Expression>,
     },
+    /// Logical `and` and `or`
+    Logical {
+        left: Box<Expression>,
+        operation: Token,
+        right: Box<Expression>,
+    },
     /// Unary expression of the form: <operand> <right expression>.
     /// For example: -1, to negate a number, or !false, to flip a bool.
     Unary {
@@ -44,6 +50,7 @@ pub(crate) enum Expression {
 /// the [`Interpreter`].
 pub(crate) trait ExpressionVisitor<T> {
     fn visit_binary(&mut self, expr: &Expression, environment: &Rc<Environment>) -> T;
+    fn visit_logical(&mut self, expr: &Expression, envenvironment: &Rc<Environment>) -> T;
     fn visit_unary(&mut self, expr: &Expression, envenvironment: &Rc<Environment>) -> T;
     fn visit_grouping(&mut self, expr: &Expression, envenvironment: &Rc<Environment>) -> T;
     fn visit_literal(&mut self, expr: &Expression, envenvironment: &Rc<Environment>) -> T;
@@ -62,6 +69,7 @@ impl Expression {
     ) -> T {
         match self {
             Expression::Binary { .. } => visitor.visit_binary(self, environment),
+            Expression::Logical { .. } => visitor.visit_logical(self, environment),
             Expression::Unary { .. } => visitor.visit_unary(self, environment),
             Expression::Grouping { .. } => visitor.visit_grouping(self, environment),
             Expression::Literal { .. } => visitor.visit_literal(self, environment),
