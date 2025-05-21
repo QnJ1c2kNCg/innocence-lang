@@ -115,7 +115,7 @@ impl ExpressionVisitor<String> for AstStringer {
 
 #[cfg(test)]
 mod tests {
-    use crate::tokens::{Location, Token, TokenType};
+    use crate::tokens::{SourceLocation, Token, TokenType};
 
     use super::*;
 
@@ -123,15 +123,15 @@ mod tests {
     fn smoke_test() {
         let test_expression = Expression::Binary {
             left: Box::new(Expression::Unary {
-                operation: Token::new(TokenType::Minus, Location::new()),
+                operation: Token::new(TokenType::Minus, SourceLocation::new()),
                 right: Box::new(Expression::Literal {
-                    literal: Token::new(TokenType::Number(123f64), Location::new()),
+                    literal: Token::new(TokenType::Number(123f64), SourceLocation::new()),
                 }),
             }),
-            operation: Token::new(TokenType::Star, Location::new()),
+            operation: Token::new(TokenType::Star, SourceLocation::new()),
             right: Box::new(Expression::Grouping {
                 expr: Box::new(Expression::Literal {
-                    literal: Token::new(TokenType::Number(45.67), Location::new()),
+                    literal: Token::new(TokenType::Number(45.67), SourceLocation::new()),
                 }),
             }),
         };

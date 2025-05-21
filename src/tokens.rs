@@ -144,11 +144,11 @@ impl TryFrom<&str> for TokenType {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
-pub(crate) struct Location {
+pub(crate) struct SourceLocation {
     line_number: usize,
 }
 
-impl Location {
+impl SourceLocation {
     pub(crate) fn new() -> Self {
         Self { line_number: 1 }
     }
@@ -158,7 +158,7 @@ impl Location {
     }
 }
 
-impl From<usize> for Location {
+impl From<usize> for SourceLocation {
     fn from(value: usize) -> Self {
         Self { line_number: value }
     }
@@ -167,7 +167,7 @@ impl From<usize> for Location {
 #[derive(PartialEq, Clone)]
 pub(crate) struct Token {
     pub(crate) token_type: TokenType,
-    location: Location,
+    location: SourceLocation,
 }
 
 impl std::fmt::Debug for Token {
@@ -177,7 +177,7 @@ impl std::fmt::Debug for Token {
 }
 
 impl Token {
-    pub(crate) fn new(token_type: TokenType, location: Location) -> Self {
+    pub(crate) fn new(token_type: TokenType, location: SourceLocation) -> Self {
         Self {
             token_type,
             location,

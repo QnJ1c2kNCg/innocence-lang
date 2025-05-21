@@ -1,4 +1,8 @@
-use crate::tokens::{Location, Token, TokenType};
+//! Everything related to the [`Scanner`]. Scanning is the first phase
+//! of the innocence interpreter. This phase reads the raw source code
+//! and converts it to a series of [`Token`]s. The tokens will later be
+//! parsed by the [`Parser`] to be converts in an AST.
+use crate::tokens::{SourceLocation, Token, TokenType};
 use std::str::FromStr;
 
 type Result<T> = std::result::Result<T, ScannerError>;
@@ -9,10 +13,16 @@ pub(crate) enum ScannerError {
     NotAKeyword,
 }
 
+/// Core construct of the scanning phase. This is what is responsible
+/// to convert raw source code to [`Token`]s.
 pub(crate) struct Scanner {
+    /// The raw source.
     source: String,
+    /// Tracker for where we are currently in the source.
     lexeme_current_index: usize,
-    scan_location: Location,
+    /// Tracker for where we are current scanning, this is useful for error reporting.
+    scan_location: SourceLocation,
+    /// The _output_ of the [`Scanner`], the produced tokens.
     tokens: Option<Vec<Token>>,
 }
 
@@ -21,17 +31,20 @@ impl Scanner {
         Scanner {
             source,
             lexeme_current_index: 0,
-            scan_location: Location::new(),
+            scan_location: SourceLocation::new(),
             tokens: None,
         }
     }
 
+    /// Tells the [`Scanner`] to start processing the source and produce the tokens.
     pub(crate) fn scan_tokens(&mut self) -> &Vec<Token> {
         if self.tokens.is_none() {
+            // TODO: use with_capacity
             let mut tokens = Vec::new();
             loop {
                 match self.scan_token() {
                     Ok(Some(token)) => tokens.push(token),
+                    // `scan_token` can return `None` for things like comments (`//`)
                     Ok(None) => (),
                     Err(e) => match e {
                         ScannerError::EndOfSource => break,
@@ -45,6 +58,7 @@ impl Scanner {
         self.tokens.as_ref().unwrap()
     }
 
+    /// Move character by character to identify which is the next [`Token`].
     fn scan_token(&mut self) -> Result<Option<Token>> {
         let c = self.advance()?;
         let token = match c {
@@ -112,6 +126,9 @@ impl Scanner {
         Ok(token)
     }
 
+    /// Utility function that advance the [`lexeme_current_index`] by one, returning the
+    /// _consumed_ character. This function will return a [`ScannerError::EndOfSource`]
+    /// if there are no more characters to consume.
     fn advance(&mut self) -> Result<char> {
         self.end_reached(self.lexeme_current_index)?;
         let c = self.char_at(self.lexeme_current_index);
@@ -133,6 +150,8 @@ impl Scanner {
         }
     }
 
+    /// Advances the [`lexeme_current_index`] until the `matched` function returns true.
+    /// This function is useful to capture things like string or number literal.
     fn advance_until_and_capture(
         &self,
         start_index: usize,
@@ -155,6 +174,7 @@ impl Scanner {
         }
     }
 
+    /// Getter helper.
     fn char_at(&self, index: usize) -> char {
         self.source
             .chars()
@@ -170,13 +190,15 @@ impl Scanner {
         }
     }
 
+    /// Consumes the characters composing a string literal.
     fn string_literal(&mut self) -> Result<Token> {
         let literal = self.advance_until_and_capture(self.lexeme_current_index, |c| c == '"')?;
-        // The +1 here is so that _eat_ the closing "
+        // the +1 here is so that _eat_ the closing `"`
         self.lexeme_current_index += literal.len() + 1;
         Ok(Token::new(TokenType::String(literal), self.scan_location))
     }
 
+    /// Consumes the characters composing a number literal.
     fn number_literal(&mut self) -> Result<Token> {
         let literal = self.advance_until_and_capture(self.lexeme_current_index - 1, |c| {
             !(c.is_digit(10) || c == '.')
@@ -189,12 +211,13 @@ impl Scanner {
         ))
     }
 
+    /// Consumes the characters composing an identifier.
     fn identifier(&mut self) -> Result<Token> {
         let literal = self.advance_until_and_capture(self.lexeme_current_index - 1, |c| {
             !(c.is_alphanumeric() || c == '_')
         })?;
         self.lexeme_current_index += literal.len() - 1;
-        // Check if the identifier is actually a keyword
+        // check if the identifier is actually a keyword
         let token_type =
             TokenType::try_from(literal.as_str()).unwrap_or(TokenType::Identifier(literal.into()));
         Ok(Token::new(token_type, self.scan_location))
