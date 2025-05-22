@@ -1,3 +1,37 @@
+/// Everything related to the [`Parser`]. Parsing is the second phase
+/// of the innocence interpreter (read [`Scanner`] doc for the first phase).
+/// The [`Parser`] reads the [`Token`]s produced by the [`Scanner`].
+///
+/// This [`Parser`] is implemented using a top-down recursive descent approach.
+/// This means that there is a function to handle every non-terminal grammar. The
+/// parser will go through the rules of the grammar. Confusingly, the grammar rules
+/// are ordered in reverse from a precedence perspective (the first rule has the lowest
+/// precedence). In this top-down parser, you reach the lowest-precedence expressions first
+/// because they may in turn contain subexpressions of higher precedence.
+///
+/// Here are innocence's grammar rules in English:
+///  program        → declaration* EOF ;
+///  declaration    → letDecl | statement ;
+///  varDecl        → "let" IDENTIFIER ( "=" expression )? ";" ;
+///  statement      → exprStmt | ifStmt | printStmt | whileStmt | block ;
+///  whileStmt      → "while" expression "{" statement "}" ;
+///  ifStmt         → "if" expression "{" statement "}" ( "else" "{" statement "}" )? ;
+///  exprStmt       → expression ";" ;
+///  printStmt      → "print" expression ";" ;
+///  block          → "{" declaration* "}" ;
+///  expression     → assignment ;
+///  assignment     → IDENTIFIER "=" assignment | logic_or ;
+///  logic_or       → logic_and ( "or" logic_and )* ;
+///  logic_and      → equality ( "and" equality )* ;
+///  equality       → comparison ( ( "!=" | "==" ) comparison )* ;
+///  comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
+///  term           → factor ( ( "-" | "+" ) factor )* ;
+///  factor         → unary ( ( "/" | "*" ) unary )* ;
+///  unary          → ( "!" | "-" ) unary | primary ;
+///  primary        → "true" | "false" | "nil" | NUMBER | STRING | "(" expression ")" | IDENTIFIER ;
+///
+/// The [`Parser`] will produce a list of [`Statement`]s (which themselves contain [`Expression`]s).
+/// These statements are what form our abstract syntax tree (AST) and will later be interpreted by [`Interpreter`].
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::{
@@ -22,35 +56,17 @@ impl ParserError {
     }
 }
 
-/*
-program        → declaration* EOF ;
-declaration    → varDecl | statement ;
-varDecl        → "let" IDENTIFIER ( "=" expression )? ";" ;
-statement      → exprStmt | ifStmt | printStmt | whileStmt | block ;
-whileStmt      → "while" expression "{" statement "}" ;
-ifStmt         → "if" expression "{" statement "}" ( "else" "{" statement "}" )? ;
-exprStmt       → expression ";" ;
-printStmt      → "print" expression ";" ;
-block          → "{" declaration* "}" ;
-expression     → assignment ;
-assignment     → IDENTIFIER "=" assignment | logic_or ;
-logic_or       → logic_and ( "or" logic_and )* ;
-logic_and      → equality ( "and" equality )* ;
-equality       → comparison ( ( "!=" | "==" ) comparison )* ;
-comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
-term           → factor ( ( "-" | "+" ) factor )* ;
-factor         → unary ( ( "/" | "*" ) unary )* ;
-unary          → ( "!" | "-" ) unary | primary ;
-primary        → "true" | "false" | "nil" | NUMBER | STRING | "(" expression ")" | IDENTIFIER ;
-
-*/
-
-// A recursive descent parser
+/// A top-down recursive descent parser, read file documentation for more info.
 pub(crate) struct Parser<'a> {
+    /// The series of [`Token`]s produced by the [`Scanner`].
     tokens: &'a [Token],
+    /// The index of the [`Token`] currently being looked at.
     current_index: AtomicUsize,
 }
 
+/// Implements the [`Parser`] grammar processing functions.
+/// Since this parser is implemented using recursive descent
+/// there is roughly one function here for each rule in the grammar.
 impl<'a> Parser<'a> {
     pub(crate) fn new(tokens: &'a [Token]) -> Self {
         Self {
@@ -59,7 +75,10 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Entry point of the [`Parser`], will read all of the tokens and produce a
+    /// list of [`Statement`]s.
     pub(crate) fn parse(&self) -> Result<Vec<Statement>> {
+        // TODO: better heuristic for capacity
         let mut statements = Vec::with_capacity(1024);
         while !self.is_at_end() {
             statements.push(self.declaration()?);
@@ -67,6 +86,9 @@ impl<'a> Parser<'a> {
         Ok(statements)
     }
 
+    /// Grammar rule for declarations. Currently checks if this a variable declaration,
+    /// otherwise _descends_ to the next grammar rule to handle statement.
+    /// NOTE: Refer to the file level rustdoc to see all grammar rules.
     fn declaration(&self) -> Result<Statement> {
         let res = if self.match_(&[TokenType::Let]) {
             self.let_declaration()
@@ -319,7 +341,7 @@ impl<'a> Parser<'a> {
             TokenType::False,
             TokenType::True,
             TokenType::Nil,
-            TokenType::Number(0f64), // TODO: This is not clean at all
+            TokenType::Number(0f64), // TODO: this is not clean at all
             TokenType::String("".to_owned()),
         ]) {
             return Ok(Expression::Literal {
@@ -344,9 +366,15 @@ impl<'a> Parser<'a> {
             "Expected expression.".to_owned(),
         ))
     }
+}
 
-    // TODO: This can probably be refactored to use an actual `match`
+/// Implements the [`Parser`] utily functions, these are the functions
+/// needed to traverse the tokens but are not related to the grammar itself.
+impl<'a> Parser<'a> {
+    /// Check if [`Token`] at `self.current_index` is of a type
+    /// present in `token_types`.
     fn match_(&self, token_types: &[TokenType]) -> bool {
+        // TODO: this can probably be refactored to use an actual `match`
         for token_type in token_types {
             if self.check(token_type) {
                 self.advance();
@@ -357,6 +385,7 @@ impl<'a> Parser<'a> {
         false
     }
 
+    /// Check if [`Token`] at `self.current_index` is of type `token_type`.
     fn check(&self, token_type: &TokenType) -> bool {
         if self.is_at_end() {
             return false;
@@ -364,7 +393,7 @@ impl<'a> Parser<'a> {
         return &self.current().token_type == token_type;
     }
 
-    /// Advance the parser and return the next token
+    /// Advance the parser and return the next [`Token`].
     fn advance(&self) -> &Token {
         if !self.is_at_end() {
             self.current_index.fetch_add(1, Ordering::Relaxed);
@@ -376,12 +405,14 @@ impl<'a> Parser<'a> {
         self.current().token_type == TokenType::Eof
     }
 
+    /// Getter for the current [`Token`].
     fn current(&self) -> &Token {
         self.tokens
             .get(self.current_index.load(Ordering::Relaxed))
             .unwrap()
     }
 
+    /// Getter for the previous [`Token`].
     fn previous(&self) -> &Token {
         self.tokens
             .get(self.current_index.load(Ordering::Relaxed) - 1)
@@ -408,6 +439,9 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// This function can be used when the parser encounters an error, instead
+    /// of aborting the entire parsing, `synchronize` can be use tomove to the next
+    /// statement. This is to provide better UX and report many errors at once.
     fn synchronize(&self) {
         self.advance();
 

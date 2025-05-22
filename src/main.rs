@@ -1,4 +1,4 @@
-//! Entry point of the innocence interpreter.
+/// Entry point of the innocence interpreter.
 mod environment;
 mod expressions;
 mod interpreter;
@@ -31,6 +31,7 @@ fn run_file(file_path: &String) {
     run(&mut interpreter, source);
 }
 
+/// This is used for the read-evaluate-print-loop (REPL).
 fn run_prompt() {
     let stdin = std::io::stdin();
     println!("Welcome to innocence's REPL");

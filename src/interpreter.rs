@@ -1,3 +1,8 @@
+/// The [`Interpreter`] is the third phase of the innocence interpreter (after the
+/// [`Scanner`] and [`Parser`]). The [`Interpreter`] takes the list of [`Statement`]s
+/// produced by the [`Parser`] in executes/evaluates them one by one. The [`Interpreter`]
+/// implements both [`StatementVisitor`] and [`ExpressionVisitor`], this is where the logic
+/// for handling the different types of nodes of the AST are.
 use std::{fmt::Display, rc::Rc};
 
 use crate::{

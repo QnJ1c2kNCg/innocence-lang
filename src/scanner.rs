@@ -1,7 +1,7 @@
-//! Everything related to the [`Scanner`]. Scanning is the first phase
-//! of the innocence interpreter. This phase reads the raw source code
-//! and converts it to a series of [`Token`]s. The tokens will later be
-//! parsed by the [`Parser`] to be converts in an AST.
+/// Everything related to the [`Scanner`]. Scanning is the first phase
+/// of the innocence interpreter. This phase reads the raw source code
+/// and converts it to a series of [`Token`]s. The tokens will later be
+/// parsed by the [`Parser`] to be converts in an AST.
 use crate::tokens::{SourceLocation, Token, TokenType};
 use std::str::FromStr;
 

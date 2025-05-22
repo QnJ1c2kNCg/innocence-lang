@@ -1,4 +1,4 @@
-//! Utility that converts an AST to a human readable format
+/// Utility that converts an AST to a human readable format
 use std::rc::Rc;
 
 use crate::{
