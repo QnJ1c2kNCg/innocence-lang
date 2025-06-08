@@ -498,7 +498,7 @@ impl<'a> Parser<'a> {
         if self.is_at_end() {
             return false;
         }
-        return &self.current().token_type == token_type;
+        &self.current().token_type == token_type
     }
 
     /// Advance the parser and return the next [`Token`].
@@ -506,7 +506,7 @@ impl<'a> Parser<'a> {
         if !self.is_at_end() {
             self.current_index.fetch_add(1, Ordering::Relaxed);
         }
-        return self.previous();
+        self.previous()
     }
 
     fn is_at_end(&self) -> bool {
@@ -598,7 +598,7 @@ mod tests {
                 let mut ast_stringer = AstStringer {};
                 assert_eq!(
                     "(+ 1 (/ (* 2 3) 4))",
-                    ast_stringer.stringify(&expression, &Rc::new(Environment::new_global()))
+                    ast_stringer.stringify(expression, &Rc::new(Environment::new_global()))
                 );
             }
             _ => panic!(),
@@ -618,7 +618,7 @@ mod tests {
                 let mut ast_stringer = AstStringer {};
                 assert_eq!(
                     "(/ (* (group (+ 1 2)) 3) 4)",
-                    ast_stringer.stringify(&expression, &Rc::new(Environment::new_global()))
+                    ast_stringer.stringify(expression, &Rc::new(Environment::new_global()))
                 );
             }
             _ => panic!(),

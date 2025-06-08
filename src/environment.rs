@@ -70,8 +70,7 @@ impl Environment {
             None => self
                 .parent
                 .as_ref()
-                .map(|enclosing| enclosing.get(id))
-                .flatten(),
+                .and_then(|enclosing| enclosing.get(id)),
         }
     }
 }

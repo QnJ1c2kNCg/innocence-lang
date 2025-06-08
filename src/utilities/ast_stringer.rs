@@ -32,7 +32,7 @@ impl AstStringer {
         }
         str.push(')');
 
-        return str;
+        str
     }
 }
 
@@ -44,11 +44,11 @@ impl ExpressionVisitor<String> for AstStringer {
                 operation,
                 right,
             } => {
-                return self.parenthesize(
+                self.parenthesize(
                     operation.lexeme().as_str(),
                     vec![&left, &right],
                     environment,
-                );
+                )
             }
             _ => unreachable!(),
         }
@@ -57,7 +57,7 @@ impl ExpressionVisitor<String> for AstStringer {
     fn visit_unary(&mut self, expr: &Expression, environment: &Rc<Environment>) -> String {
         match expr {
             Expression::Unary { operation, right } => {
-                return self.parenthesize(operation.lexeme().as_str(), vec![&right], environment);
+                self.parenthesize(operation.lexeme().as_str(), vec![&right], environment)
             }
             _ => unreachable!(),
         }
@@ -66,7 +66,7 @@ impl ExpressionVisitor<String> for AstStringer {
     fn visit_grouping(&mut self, expr: &Expression, environment: &Rc<Environment>) -> String {
         match expr {
             Expression::Grouping { expr } => {
-                return self.parenthesize("group", vec![&expr], environment);
+                self.parenthesize("group", vec![&expr], environment)
             }
             _ => unreachable!(),
         }
@@ -75,7 +75,7 @@ impl ExpressionVisitor<String> for AstStringer {
     fn visit_literal(&mut self, expr: &Expression, _: &Rc<Environment>) -> String {
         match expr {
             Expression::Literal { literal } => {
-                return literal.lexeme().to_owned();
+                literal.lexeme().to_owned()
             }
             _ => unreachable!(),
         }
@@ -84,7 +84,7 @@ impl ExpressionVisitor<String> for AstStringer {
     fn visit_variable(&mut self, expr: &Expression, _: &Rc<Environment>) -> String {
         match expr {
             Expression::Variable { id } => {
-                return format!("variable: {:?}", id);
+                format!("variable: {:?}", id)
             }
             _ => unreachable!(),
         }
@@ -93,7 +93,7 @@ impl ExpressionVisitor<String> for AstStringer {
     fn visit_assign(&mut self, expr: &Expression, _: &Rc<Environment>) -> String {
         match expr {
             Expression::Assign { id, value } => {
-                return format!("assign: {:?}, {:?}", id, value);
+                format!("assign: {:?}, {:?}", id, value)
             }
             _ => unreachable!(),
         }
@@ -106,7 +106,7 @@ impl ExpressionVisitor<String> for AstStringer {
                 operation,
                 right,
             } => {
-                return format!("logical: {:?}, {:?}, {:?}", left, operation, right);
+                format!("logical: {:?}, {:?}, {:?}", left, operation, right)
             }
             _ => unreachable!(),
         }
@@ -119,7 +119,7 @@ impl ExpressionVisitor<String> for AstStringer {
                 paren,
                 arguments,
             } => {
-                return format!("function_call: {:?}, {:?}, {:?}", callee, paren, arguments);
+                format!("function_call: {:?}, {:?}, {:?}", callee, paren, arguments)
             }
             _ => unreachable!(),
         }

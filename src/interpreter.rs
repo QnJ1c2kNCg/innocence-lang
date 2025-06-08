@@ -350,7 +350,7 @@ impl ExpressionVisitor<Result<Value>> for Interpreter {
         environment: &Rc<Environment>,
     ) -> Result<Value> {
         match expr {
-            Expression::Grouping { expr } => self.evaluate(&expr, environment),
+            Expression::Grouping { expr } => self.evaluate(expr, environment),
             _ => unreachable!(),
         }
     }
@@ -412,7 +412,7 @@ impl ExpressionVisitor<Result<Value>> for Interpreter {
             } => {
                 let callee = self.evaluate(callee, environment)?;
                 let arguments = arguments
-                    .into_iter()
+                    .iter()
                     .map(|argument| self.evaluate(argument, environment))
                     .collect::<Result<Vec<Value>>>()?;
 
@@ -540,7 +540,7 @@ mod tests {
             Statement::Expression(expression) => {
                 let mut interpreter = Interpreter::new();
                 let interpreted = interpreter
-                    .evaluate(&expression, &Rc::new(Environment::new_global()))
+                    .evaluate(expression, &Rc::new(Environment::new_global()))
                     .unwrap();
 
                 assert!(matches!(interpreted, Value::Number(2.5)));
@@ -573,7 +573,7 @@ mod tests {
                 Statement::Expression(expression) => {
                     let mut interpreter = Interpreter::new();
                     let interpreted = interpreter
-                        .evaluate(&expression, &Rc::new(Environment::new_global()))
+                        .evaluate(expression, &Rc::new(Environment::new_global()))
                         .unwrap();
 
                     assert!(matches!(interpreted, Value::Bool(true)));
@@ -607,7 +607,7 @@ mod tests {
                 Statement::Expression(expression) => {
                     let mut interpreter = Interpreter::new();
                     let interpreted = interpreter
-                        .evaluate(&expression, &Rc::new(Environment::new_global()))
+                        .evaluate(expression, &Rc::new(Environment::new_global()))
                         .unwrap();
 
                     assert!(matches!(interpreted, Value::Bool(false)));
@@ -629,7 +629,7 @@ mod tests {
             Statement::Expression(expression) => {
                 let mut interpreter = Interpreter::new();
                 let interpreted = interpreter
-                    .evaluate(&expression, &Rc::new(Environment::new_global()))
+                    .evaluate(expression, &Rc::new(Environment::new_global()))
                     .unwrap();
 
                 assert!(matches!(interpreted, Value::Number(-1.0)));

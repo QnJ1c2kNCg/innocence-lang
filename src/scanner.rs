@@ -118,7 +118,7 @@ impl Scanner {
                 self.scan_location.increment_line(1);
                 None
             }
-            c if c.is_digit(10) => Some(self.number_literal()?),
+            c if c.is_ascii_digit() => Some(self.number_literal()?),
             c if c.is_alphanumeric() => Some(self.identifier()?),
             c => panic!("[{:?}] Unrecognized character: {}", self.scan_location, c),
         };
@@ -201,7 +201,7 @@ impl Scanner {
     /// Consumes the characters composing a number literal.
     fn number_literal(&mut self) -> Result<Token> {
         let literal = self.advance_until_and_capture(self.lexeme_current_index - 1, |c| {
-            !(c.is_digit(10) || c == '.')
+            !(c.is_ascii_digit() || c == '.')
         });
         let literal = literal.unwrap();
         self.lexeme_current_index += literal.len() - 1;
