@@ -111,6 +111,19 @@ impl ExpressionVisitor<String> for AstStringer {
             _ => unreachable!(),
         }
     }
+
+    fn visit_function_call(&mut self, expr: &Expression, _: &Rc<Environment>) -> String {
+        match expr {
+            Expression::FunctionCall {
+                callee,
+                paren,
+                arguments,
+            } => {
+                return format!("function_call: {:?}, {:?}, {:?}", callee, paren, arguments);
+            }
+            _ => unreachable!(),
+        }
+    }
 }
 
 #[cfg(test)]

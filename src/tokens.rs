@@ -1,3 +1,5 @@
+use std::mem::discriminant;
+
 use crate::scanner::ScannerError;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -6,6 +8,13 @@ pub(crate) struct Identifier(String);
 impl Identifier {
     pub(crate) fn new(id: String) -> Self {
         Self(id)
+    }
+
+    // TODO: This should be cleaned, we are using an empty
+    // identifier as a way to match any identifier. What we should
+    // use is something like looking at the discriminant
+    pub(crate) fn any() -> Self {
+        Self("".to_owned())
     }
 }
 
@@ -71,50 +80,10 @@ pub(crate) enum TokenType {
     Eof,
 }
 
-// XXX: Maybe this is dangerous?
+// XXX: Maybe this is dangerous? probably
 impl PartialEq for TokenType {
     fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (TokenType::LeftParen, TokenType::LeftParen)
-            | (TokenType::RightParen, TokenType::RightParen)
-            | (TokenType::LeftBrace, TokenType::LeftBrace)
-            | (TokenType::RightBrace, TokenType::RightBrace)
-            | (TokenType::Comma, TokenType::Comma)
-            | (TokenType::Dot, TokenType::Dot)
-            | (TokenType::Minus, TokenType::Minus)
-            | (TokenType::Plus, TokenType::Plus)
-            | (TokenType::Semicolon, TokenType::Semicolon)
-            | (TokenType::Slash, TokenType::Slash)
-            | (TokenType::Star, TokenType::Star)
-            | (TokenType::Bang, TokenType::Bang)
-            | (TokenType::BangEqual, TokenType::BangEqual)
-            | (TokenType::Equal, TokenType::Equal)
-            | (TokenType::EqualEqual, TokenType::EqualEqual)
-            | (TokenType::Greater, TokenType::Greater)
-            | (TokenType::GreaterEqual, TokenType::GreaterEqual)
-            | (TokenType::Less, TokenType::Less)
-            | (TokenType::LessEqual, TokenType::LessEqual)
-            | (TokenType::And, TokenType::And)
-            | (TokenType::Or, TokenType::Or)
-            | (TokenType::Struct, TokenType::Struct)
-            | (TokenType::If, TokenType::If)
-            | (TokenType::Else, TokenType::Else)
-            | (TokenType::For, TokenType::For)
-            | (TokenType::While, TokenType::While)
-            | (TokenType::False, TokenType::False)
-            | (TokenType::True, TokenType::True)
-            | (TokenType::Fn, TokenType::Fn)
-            | (TokenType::Nil, TokenType::Nil)
-            | (TokenType::Print, TokenType::Print)
-            | (TokenType::Return, TokenType::Return)
-            | (TokenType::This, TokenType::This)
-            | (TokenType::Let, TokenType::Let)
-            | (TokenType::Eof, TokenType::Eof)
-            | (TokenType::Identifier(_), TokenType::Identifier(_))
-            | (TokenType::String(_), TokenType::String(_))
-            | (TokenType::Number(_), TokenType::Number(_)) => true,
-            _ => false,
-        }
+        discriminant(self) == discriminant(other)
     }
 }
 

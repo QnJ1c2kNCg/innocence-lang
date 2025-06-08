@@ -11,7 +11,10 @@
 ///
 /// Here are innocence's grammar rules in English:
 ///  program        → declaration* EOF ;
-///  declaration    → letDecl | statement ;
+///  declaration    → funDecl | varDecl | statement ;
+///  funDecl        → "fn" function ;
+///  function       → IDENTIFIER "(" parameters? ")" block ;
+///  parameters     → IDENTIFIER ( "," IDENTIFIER )* ;
 ///  varDecl        → "let" IDENTIFIER ( "=" expression )? ";" ;
 ///  statement      → exprStmt | ifStmt | printStmt | whileStmt | block ;
 ///  whileStmt      → "while" expression "{" statement "}" ;
@@ -27,7 +30,9 @@
 ///  comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 ///  term           → factor ( ( "-" | "+" ) factor )* ;
 ///  factor         → unary ( ( "/" | "*" ) unary )* ;
-///  unary          → ( "!" | "-" ) unary | primary ;
+///  unary          → ( "!" | "-" ) unary | call ;
+///  call           → primary ( "(" arguments? ")" )* ;
+///  arguments      → expression ( "," expression )* ;
 ///  primary        → "true" | "false" | "nil" | NUMBER | STRING | "(" expression ")" | IDENTIFIER ;
 ///
 /// The [`Parser`] will produce a list of [`Statement`]s (which themselves contain [`Expression`]s).
@@ -48,6 +53,18 @@ pub(crate) enum ParserError {
     DoesNotRequireSynchronization(String),
     Recoverable,
     Unrecoverable { token: Token, message: String },
+}
+
+enum FunctionKind {
+    Function,
+}
+
+impl std::fmt::Display for FunctionKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            &FunctionKind::Function => write!(f, "function"),
+        }
+    }
 }
 
 impl ParserError {
@@ -90,7 +107,9 @@ impl<'a> Parser<'a> {
     /// otherwise _descends_ to the next grammar rule to handle statement.
     /// NOTE: Refer to the file level rustdoc to see all grammar rules.
     fn declaration(&self) -> Result<Statement> {
-        let res = if self.match_(&[TokenType::Let]) {
+        let res = if self.match_(&[TokenType::Fn]) {
+            self.function_declaration(FunctionKind::Function)
+        } else if self.match_(&[TokenType::Let]) {
             self.let_declaration()
         } else {
             self.statement()
@@ -103,9 +122,57 @@ impl<'a> Parser<'a> {
         })
     }
 
+    fn function_declaration(&self, kind: FunctionKind) -> Result<Statement> {
+        let name = self.consume_expected_token(
+            &TokenType::Identifier(Identifier::any()),
+            &format!("Expect {} name.", kind),
+        )?;
+
+        self.consume_expected_token(
+            &TokenType::LeftParen,
+            &format!("Expect '(' after {} name.", kind),
+        )?;
+
+        let mut parameters = Vec::new();
+        // if we don't immediately see the right parent it means
+        // that there are parameters
+        if !self.check(&TokenType::RightParen) {
+            loop {
+                parameters.push(Identifier::new(
+                    self.consume_expected_token(
+                        &TokenType::Identifier(Identifier::any()),
+                        "Expect parameter name.",
+                    )?
+                    .lexeme(),
+                ));
+                if !self.match_(&[TokenType::Comma]) {
+                    break;
+                }
+            }
+        }
+
+        self.consume_expected_token(
+            &TokenType::RightParen,
+            "Expect closing parenthesis after parameters.",
+        )?;
+
+        self.consume_expected_token(
+            &TokenType::LeftBrace,
+            &format!("Expect '{{' before {} body.", kind),
+        )?;
+
+        let body = Box::new(Statement::Block(self.block()?));
+
+        Ok(Statement::Function {
+            name: Identifier::new(name.lexeme()),
+            parameters,
+            body,
+        })
+    }
+
     fn let_declaration(&self) -> Result<Statement> {
         let name = self.consume_expected_token(
-            &TokenType::Identifier(Identifier::new("".to_owned())),
+            &TokenType::Identifier(Identifier::any()),
             "Expect variable name.",
         )?;
 
@@ -332,8 +399,49 @@ impl<'a> Parser<'a> {
                 right: Box::new(right),
             })
         } else {
-            self.primary()
+            self.function_call()
         }
+    }
+
+    fn function_call(&self) -> Result<Expression> {
+        let mut expr = self.primary()?;
+
+        // after parsing the expression, we are seeing an open paren,
+        // this means we are calling a function, we thus call `finish_call`
+        while self.match_(&[TokenType::LeftParen]) {
+            expr = self.finish_call(expr)?;
+        }
+        Ok(expr)
+    }
+
+    fn finish_call(&self, callee: Expression) -> Result<Expression> {
+        let mut arguments = Vec::new();
+
+        // if we don't immediately see the right parent it means
+        // that there are arguments
+        if !self.check(&TokenType::RightParen) {
+            loop {
+                arguments.push(self.expression()?);
+                if !self.match_(&[TokenType::Comma]) {
+                    break;
+                }
+            }
+        }
+
+        let paren = self.consume_expected_token(
+            &TokenType::RightParen,
+            "Expect closing parenthesis after function call.",
+        )?;
+
+        // doesn't really matter for the interpreter but might matter if
+        // we compile of bytecode at some point
+        assert!(arguments.len() < 256, "too many function arguments");
+
+        Ok(Expression::FunctionCall {
+            callee: Box::new(callee),
+            paren: paren.clone(),
+            arguments,
+        })
     }
 
     fn primary(&self) -> Result<Expression> {
@@ -348,7 +456,7 @@ impl<'a> Parser<'a> {
                 literal: self.previous().clone(),
             });
         }
-        if self.match_(&[TokenType::Identifier(Identifier::new("".to_owned()))]) {
+        if self.match_(&[TokenType::Identifier(Identifier::any())]) {
             return Ok(Expression::Variable {
                 id: Identifier::new(self.previous().lexeme()),
             });

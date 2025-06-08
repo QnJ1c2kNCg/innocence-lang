@@ -3,7 +3,7 @@
 /// produced by the [`Parser`] in executes/evaluates them one by one. The [`Interpreter`]
 /// implements both [`StatementVisitor`] and [`ExpressionVisitor`], this is where the logic
 /// for handling the different types of nodes of the AST are.
-use std::{fmt::Display, rc::Rc};
+use std::{fmt::Display, iter::zip, rc::Rc};
 
 use crate::{
     environment::Environment,
@@ -27,12 +27,20 @@ pub(crate) struct Interpreter {
 }
 
 /// Represents a value, this is what an [`Expression`] evaluates to.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub(crate) enum Value {
     String(String),
     // TODO: Swap out to customer number type
     Number(f64),
     Bool(bool),
+    // XXX: Not sure if we want this here. Maybe functions deserve
+    // their own construct and storage in the [`Environment`].
+    // Also, this is a copy of the Statement::Function...
+    Function {
+        name: Identifier,
+        parameters: Vec<Identifier>,
+        body: Box<Statement>,
+    },
 }
 
 impl Display for Value {
@@ -41,6 +49,11 @@ impl Display for Value {
             Value::String(s) => write!(f, "{}", s),
             Value::Number(n) => write!(f, "{}", n),
             Value::Bool(b) => write!(f, "{}", b),
+            Value::Function {
+                name,
+                parameters: _,
+                body: _,
+            } => write!(f, "<func> {:?}", name),
         }
     }
 }
@@ -164,6 +177,40 @@ impl Interpreter {
     /// `evaluate` to what is _contained_ in the grouping, etc.
     fn evaluate(&mut self, expr: &Expression, environment: &Rc<Environment>) -> Result<Value> {
         expr.accept(self, environment)
+    }
+
+    /// Makes a function call. This function will first create an [`Environment`] for
+    /// the body of the function, populate it with all of the arguments that were passed
+    /// to the function and then evaluate its body.
+    fn make_function_call(
+        &mut self,
+        callee: Value,
+        arguments: Vec<Value>,
+        parent_environment: &Rc<Environment>,
+    ) -> Result<Value> {
+        let function_env = Rc::new(Environment::new(parent_environment.clone()));
+
+        match callee {
+            Value::Function {
+                name: _,
+                parameters,
+                body,
+            } => {
+                assert_eq!(arguments.len(), parameters.len());
+                for (parameter, argument) in zip(parameters, arguments) {
+                    function_env.define(parameter, argument);
+                }
+                match &*body {
+                    Statement::Block(statements) => {
+                        self.execute_block(statements, function_env)?;
+                        // TODO: Implement returns
+                        Ok(Value::Number(42.0))
+                    }
+                    _ => unreachable!(),
+                }
+            }
+            _ => unreachable!(),
+        }
     }
 }
 
@@ -351,6 +398,29 @@ impl ExpressionVisitor<Result<Value>> for Interpreter {
             _ => unreachable!(),
         }
     }
+
+    fn visit_function_call(
+        &mut self,
+        expr: &Expression,
+        environment: &Rc<Environment>,
+    ) -> Result<Value> {
+        match expr {
+            Expression::FunctionCall {
+                callee,
+                paren,
+                arguments,
+            } => {
+                let callee = self.evaluate(callee, environment)?;
+                let arguments = arguments
+                    .into_iter()
+                    .map(|argument| self.evaluate(argument, environment))
+                    .collect::<Result<Vec<Value>>>()?;
+
+                self.make_function_call(callee, arguments, environment)
+            }
+            _ => unreachable!(),
+        }
+    }
 }
 
 impl StatementVisitor<Result<()>> for Interpreter {
@@ -380,6 +450,31 @@ impl StatementVisitor<Result<()>> for Interpreter {
             Statement::Let { name, initializer } => {
                 let value = self.evaluate(initializer, environment)?;
                 environment.define(name.clone(), value);
+                Ok(())
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn visit_function_stmt(
+        &mut self,
+        stmt: &Statement,
+        environment: &Rc<Environment>,
+    ) -> Result<()> {
+        match stmt.clone() {
+            Statement::Function {
+                name,
+                parameters,
+                body,
+            } => {
+                // TODO: Do I need two different types here? I'm
+                // converting the statement to a value.
+                let value = Value::Function {
+                    name: name.clone(),
+                    parameters,
+                    body,
+                };
+                environment.define(name, value);
                 Ok(())
             }
             _ => unreachable!(),
@@ -448,7 +543,7 @@ mod tests {
                     .evaluate(&expression, &Rc::new(Environment::new_global()))
                     .unwrap();
 
-                assert_eq!(interpreted, Value::Number(2.5));
+                assert!(matches!(interpreted, Value::Number(2.5)));
             }
             _ => panic!(),
         }
@@ -481,7 +576,7 @@ mod tests {
                         .evaluate(&expression, &Rc::new(Environment::new_global()))
                         .unwrap();
 
-                    assert_eq!(interpreted, Value::Bool(true));
+                    assert!(matches!(interpreted, Value::Bool(true)));
                 }
                 _ => panic!(),
             }
@@ -515,7 +610,7 @@ mod tests {
                         .evaluate(&expression, &Rc::new(Environment::new_global()))
                         .unwrap();
 
-                    assert_eq!(interpreted, Value::Bool(false));
+                    assert!(matches!(interpreted, Value::Bool(false)));
                 }
                 _ => panic!(),
             }
@@ -537,7 +632,7 @@ mod tests {
                     .evaluate(&expression, &Rc::new(Environment::new_global()))
                     .unwrap();
 
-                assert_eq!(interpreted, Value::Number(-1.0));
+                assert!(matches!(interpreted, Value::Number(-1.0)));
             }
             _ => panic!(),
         }

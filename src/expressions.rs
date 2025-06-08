@@ -44,18 +44,27 @@ pub(crate) enum Expression {
         id: Identifier,
         value: Box<Expression>,
     },
+    /// A function call, the `callee` will be the [`Identifier`] for the function,
+    /// and arguments are what is inside the parenthesis.
+    FunctionCall {
+        callee: Box<Expression>,
+        // Store the closing paren for better error reporting.
+        paren: Token,
+        arguments: Vec<Expression>,
+    },
 }
 
 /// Visitor pattern trait for something that can visit an expression. This is implemented by
 /// the [`Interpreter`].
 pub(crate) trait ExpressionVisitor<T> {
     fn visit_binary(&mut self, expr: &Expression, environment: &Rc<Environment>) -> T;
-    fn visit_logical(&mut self, expr: &Expression, envenvironment: &Rc<Environment>) -> T;
-    fn visit_unary(&mut self, expr: &Expression, envenvironment: &Rc<Environment>) -> T;
-    fn visit_grouping(&mut self, expr: &Expression, envenvironment: &Rc<Environment>) -> T;
-    fn visit_literal(&mut self, expr: &Expression, envenvironment: &Rc<Environment>) -> T;
-    fn visit_variable(&mut self, expr: &Expression, envenvironment: &Rc<Environment>) -> T;
-    fn visit_assign(&mut self, expr: &Expression, envenvironment: &Rc<Environment>) -> T;
+    fn visit_logical(&mut self, expr: &Expression, environment: &Rc<Environment>) -> T;
+    fn visit_unary(&mut self, expr: &Expression, environment: &Rc<Environment>) -> T;
+    fn visit_grouping(&mut self, expr: &Expression, environment: &Rc<Environment>) -> T;
+    fn visit_literal(&mut self, expr: &Expression, environment: &Rc<Environment>) -> T;
+    fn visit_variable(&mut self, expr: &Expression, environment: &Rc<Environment>) -> T;
+    fn visit_assign(&mut self, expr: &Expression, environment: &Rc<Environment>) -> T;
+    fn visit_function_call(&mut self, expr: &Expression, environment: &Rc<Environment>) -> T;
 }
 
 impl Expression {
@@ -75,6 +84,7 @@ impl Expression {
             Expression::Literal { .. } => visitor.visit_literal(self, environment),
             Expression::Variable { .. } => visitor.visit_variable(self, environment),
             Expression::Assign { .. } => visitor.visit_assign(self, environment),
+            Expression::FunctionCall { .. } => visitor.visit_function_call(self, environment),
         }
     }
 }
