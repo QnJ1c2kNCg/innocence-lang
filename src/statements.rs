@@ -39,6 +39,9 @@ pub(crate) enum Statement {
         condition: Expression,
         body: Box<Statement>,
     },
+    /// `return` keyword, the returned expression is optional since
+    /// `return;` is a valid statement.
+    Return { expr: Option<Expression> },
 }
 
 /// Visitor pattern trait for something that can visit a statement. This is implemented by
@@ -51,6 +54,7 @@ pub(crate) trait StatementVisitor<T> {
     fn visit_block_stmt(&mut self, stmt: &Statement, environment: &Rc<Environment>) -> T;
     fn visit_if_stmt(&mut self, stmt: &Statement, environment: &Rc<Environment>) -> T;
     fn visit_while_stmt(&mut self, stmt: &Statement, environment: &Rc<Environment>) -> T;
+    fn visit_return_stmt(&mut self, stmt: &Statement, environment: &Rc<Environment>) -> T;
 }
 
 impl Statement {
@@ -70,6 +74,7 @@ impl Statement {
             Statement::Block(_) => visitor.visit_block_stmt(self, environment),
             Statement::If { .. } => visitor.visit_if_stmt(self, environment),
             Statement::While { .. } => visitor.visit_while_stmt(self, environment),
+            Statement::Return { .. } => visitor.visit_return_stmt(self, environment),
         }
     }
 }

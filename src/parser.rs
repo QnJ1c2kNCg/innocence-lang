@@ -16,11 +16,12 @@
 ///  function       → IDENTIFIER "(" parameters? ")" block ;
 ///  parameters     → IDENTIFIER ( "," IDENTIFIER )* ;
 ///  varDecl        → "let" IDENTIFIER ( "=" expression )? ";" ;
-///  statement      → exprStmt | ifStmt | printStmt | whileStmt | block ;
-///  whileStmt      → "while" expression "{" statement "}" ;
-///  ifStmt         → "if" expression "{" statement "}" ( "else" "{" statement "}" )? ;
+///  statement      → exprStmt | ifStmt | printStmt | returnStmt | whileStmt | block ;
 ///  exprStmt       → expression ";" ;
+///  ifStmt         → "if" expression "{" statement "}" ( "else" "{" statement "}" )? ;
 ///  printStmt      → "print" expression ";" ;
+///  returnStmt     → "return" expression? ";" ;
+///  whileStmt      → "while" expression "{" statement "}" ;
 ///  block          → "{" declaration* "}" ;
 ///  expression     → assignment ;
 ///  assignment     → IDENTIFIER "=" assignment | logic_or ;
@@ -196,6 +197,8 @@ impl<'a> Parser<'a> {
             self.if_statement()
         } else if self.match_(&[TokenType::Print]) {
             self.print_statement()
+        } else if self.match_(&[TokenType::Return]) {
+            self.return_statement()
         } else if self.match_(&[TokenType::While]) {
             self.while_statement()
         } else if self.match_(&[TokenType::LeftBrace]) {
@@ -229,6 +232,17 @@ impl<'a> Parser<'a> {
         let expr = self.expression()?;
         self.consume_expected_token(&TokenType::Semicolon, "Exprect ';' after value")?;
         Ok(Statement::Print(expr))
+    }
+
+    fn return_statement(&self) -> Result<Statement> {
+        let expr = if !self.check(&TokenType::Semicolon) {
+            Some(self.expression()?)
+        } else {
+            None
+        };
+        self.consume_expected_token(&TokenType::Semicolon, "Expect ';' after return value.")?;
+
+        Ok(Statement::Return { expr })
     }
 
     fn while_statement(&self) -> Result<Statement> {

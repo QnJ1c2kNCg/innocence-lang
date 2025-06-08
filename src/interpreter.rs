@@ -18,6 +18,10 @@ type Result<T> = std::result::Result<T, InterpreterError>;
 pub(crate) enum InterpreterError {
     InvalidType(String),
     UnknownVariable(Identifier),
+    /// This is used when the `return` keyword is encountered.
+    /// It's used pass the return value up to the caller.
+    /// The option is used since we can return void.
+    Return(Value),
 }
 
 /// Construct that interprets innocence code.
@@ -29,6 +33,8 @@ pub(crate) struct Interpreter {
 /// Represents a value, this is what an [`Expression`] evaluates to.
 #[derive(Clone, Debug)]
 pub(crate) enum Value {
+    /// Unit type that represents nothing
+    Null,
     String(String),
     // TODO: Swap out to customer number type
     Number(f64),
@@ -46,6 +52,7 @@ pub(crate) enum Value {
 impl Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Value::Null => write!(f, "null"),
             Value::String(s) => write!(f, "{}", s),
             Value::Number(n) => write!(f, "{}", n),
             Value::Bool(b) => write!(f, "{}", b),
@@ -202,9 +209,10 @@ impl Interpreter {
                 }
                 match &*body {
                     Statement::Block(statements) => {
-                        self.execute_block(statements, function_env)?;
-                        // TODO: Implement returns
-                        Ok(Value::Number(42.0))
+                        match self.execute_block(statements, function_env) {
+                            Err(InterpreterError::Return(value)) => Ok(value),
+                            _ => unreachable!(),
+                        }
                     }
                     _ => unreachable!(),
                 }
@@ -519,6 +527,19 @@ impl StatementVisitor<Result<()>> for Interpreter {
             _ => unreachable!(),
         }
         Ok(())
+    }
+
+    fn visit_return_stmt(&mut self, stmt: &Statement, environment: &Rc<Environment>) -> Result<()> {
+        match stmt {
+            Statement::Return { expr } => {
+                let value = match expr {
+                    Some(value) => self.evaluate(&value, environment)?,
+                    None => Value::Null,
+                };
+                Err(InterpreterError::Return(value))
+            }
+            _ => unreachable!(),
+        }
     }
 }
 
