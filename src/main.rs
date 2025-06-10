@@ -5,6 +5,7 @@ mod interpreter;
 mod logger;
 mod parser;
 mod scanner;
+mod semantic_analysis;
 mod statements;
 mod tokens;
 mod utilities;

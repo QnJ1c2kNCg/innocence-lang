@@ -21,3 +21,4 @@ This document will try to organize my thoughts around innocence. At this stage, 
 * No methods? just function in the namespace that take a struct?
 * No multi-threading
 * Nothing implicit
+* Do we want nested functions? no
