@@ -44,6 +44,16 @@ pub(crate) enum Expression {
         id: Identifier,
         value: Box<Expression>,
     },
+    /// Initialization of a struct, during a variable declaration
+    StructInit {
+        struct_type: Box<Expression>,
+        fields: Vec<(Identifier, Expression)>,
+    },
+    /// Accessor for a struct field
+    StructAccessor {
+        instance_name: Box<Expression>,
+        field_name: Identifier,
+    },
     /// A function call, the `callee` will be the [`Identifier`] for the function,
     /// and arguments are what is inside the parenthesis.
     FunctionCall {
@@ -65,6 +75,12 @@ pub(crate) trait ExpressionVisitor<T> {
     fn visit_variable(&mut self, expr: &Expression, environment: &Rc<Environment>) -> T;
     fn visit_assign(&mut self, expr: &Expression, environment: &Rc<Environment>) -> T;
     fn visit_function_call(&mut self, expr: &Expression, environment: &Rc<Environment>) -> T;
+    fn visit_struct_initialization(
+        &mut self,
+        expr: &Expression,
+        environment: &Rc<Environment>,
+    ) -> T;
+    fn visit_struct_accessor(&mut self, expr: &Expression, environment: &Rc<Environment>) -> T;
 }
 
 impl Expression {
@@ -85,6 +101,8 @@ impl Expression {
             Expression::Variable { .. } => visitor.visit_variable(self, environment),
             Expression::Assign { .. } => visitor.visit_assign(self, environment),
             Expression::FunctionCall { .. } => visitor.visit_function_call(self, environment),
+            Expression::StructInit { .. } => visitor.visit_struct_initialization(self, environment),
+            Expression::StructAccessor { .. } => visitor.visit_struct_accessor(self, environment),
         }
     }
 }

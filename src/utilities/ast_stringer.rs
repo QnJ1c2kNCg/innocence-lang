@@ -43,13 +43,11 @@ impl ExpressionVisitor<String> for AstStringer {
                 left,
                 operation,
                 right,
-            } => {
-                self.parenthesize(
-                    operation.lexeme().as_str(),
-                    vec![&left, &right],
-                    environment,
-                )
-            }
+            } => self.parenthesize(
+                operation.lexeme().as_str(),
+                vec![&left, &right],
+                environment,
+            ),
             _ => unreachable!(),
         }
     }
@@ -65,18 +63,14 @@ impl ExpressionVisitor<String> for AstStringer {
 
     fn visit_grouping(&mut self, expr: &Expression, environment: &Rc<Environment>) -> String {
         match expr {
-            Expression::Grouping { expr } => {
-                self.parenthesize("group", vec![&expr], environment)
-            }
+            Expression::Grouping { expr } => self.parenthesize("group", vec![&expr], environment),
             _ => unreachable!(),
         }
     }
 
     fn visit_literal(&mut self, expr: &Expression, _: &Rc<Environment>) -> String {
         match expr {
-            Expression::Literal { literal } => {
-                literal.lexeme().to_owned()
-            }
+            Expression::Literal { literal } => literal.lexeme().to_owned(),
             _ => unreachable!(),
         }
     }
@@ -120,6 +114,30 @@ impl ExpressionVisitor<String> for AstStringer {
                 arguments,
             } => {
                 format!("function_call: {:?}, {:?}, {:?}", callee, paren, arguments)
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn visit_struct_initialization(&mut self, expr: &Expression, _: &Rc<Environment>) -> String {
+        match expr {
+            Expression::StructInit {
+                struct_type,
+                fields,
+            } => {
+                format!("struct_init: {:?}, {:?}", struct_type, fields)
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn visit_struct_accessor(&mut self, expr: &Expression, _: &Rc<Environment>) -> String {
+        match expr {
+            Expression::StructAccessor {
+                instance_name,
+                field_name,
+            } => {
+                format!("struct_accessor: {:?}, {:?}", instance_name, field_name)
             }
             _ => unreachable!(),
         }

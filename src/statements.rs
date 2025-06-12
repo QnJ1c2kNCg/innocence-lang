@@ -19,6 +19,11 @@ pub(crate) enum Statement {
         name: Identifier,
         initializer: Expression,
     },
+    /// Struct declaration.
+    Struct {
+        name: Identifier,
+        fields: Vec<Identifier>,
+    },
     /// Function declaration.
     Function {
         name: Identifier,
@@ -50,6 +55,7 @@ pub(crate) trait StatementVisitor<T> {
     fn visit_expression_stmt(&mut self, stmt: &Statement, environment: &Rc<Environment>) -> T;
     fn visit_print_stmt(&mut self, stmt: &Statement, environment: &Rc<Environment>) -> T;
     fn visit_let_stmt(&mut self, stmt: &Statement, environment: &Rc<Environment>) -> T;
+    fn visit_struct_stmt(&mut self, stmt: &Statement, environment: &Rc<Environment>) -> T;
     fn visit_function_stmt(&mut self, stmt: &Statement, environment: &Rc<Environment>) -> T;
     fn visit_block_stmt(&mut self, stmt: &Statement, environment: &Rc<Environment>) -> T;
     fn visit_if_stmt(&mut self, stmt: &Statement, environment: &Rc<Environment>) -> T;
@@ -70,6 +76,7 @@ impl Statement {
             Statement::Expression(_) => visitor.visit_expression_stmt(self, environment),
             Statement::Print(_) => visitor.visit_print_stmt(self, environment),
             Statement::Let { .. } => visitor.visit_let_stmt(self, environment),
+            Statement::Struct { .. } => visitor.visit_struct_stmt(self, environment),
             Statement::Function { .. } => visitor.visit_function_stmt(self, environment),
             Statement::Block(_) => visitor.visit_block_stmt(self, environment),
             Statement::If { .. } => visitor.visit_if_stmt(self, environment),

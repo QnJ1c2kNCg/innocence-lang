@@ -11,11 +11,12 @@
 ///
 /// Here are innocence's grammar rules in English:
 ///  program        → declaration* EOF ;
-///  declaration    → funDecl | varDecl | statement ;
+///  declaration    → structDecl | funDecl | letDecl | statement ;
+///  structDecl     → "struct" IDENTIFIER "{" parameters* "}" ;
 ///  funDecl        → "fn" function ;
 ///  function       → IDENTIFIER "(" parameters? ")" block ;
 ///  parameters     → IDENTIFIER ( "," IDENTIFIER )* ;
-///  varDecl        → "let" IDENTIFIER ( "=" expression )? ";" ;
+///  letDecl        → "let" IDENTIFIER "=" expression ";" ;
 ///  statement      → exprStmt | ifStmt | printStmt | returnStmt | whileStmt | block ;
 ///  exprStmt       → expression ";" ;
 ///  ifStmt         → "if" expression "{" statement "}" ( "else" "{" statement "}" )? ;
@@ -31,8 +32,9 @@
 ///  comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 ///  term           → factor ( ( "-" | "+" ) factor )* ;
 ///  factor         → unary ( ( "/" | "*" ) unary )* ;
-///  unary          → ( "!" | "-" ) unary | call ;
-///  call           → primary ( "(" arguments? ")" )* ;
+///  unary          → ( "!" | "-" ) unary | ( structInit | call ) ;
+///  structInit     → primary "{" ( assignment "," )* "}" | call ;
+///  call           → primary ( "(" arguments? ")" | "." IDENTIFIER )* ;
 ///  arguments      → expression ( "," expression )* ;
 ///  primary        → "true" | "false" | "nil" | NUMBER | STRING | "(" expression ")" | IDENTIFIER ;
 ///
@@ -108,7 +110,9 @@ impl<'a> Parser<'a> {
     /// otherwise _descends_ to the next grammar rule to handle statement.
     /// NOTE: Refer to the file level rustdoc to see all grammar rules.
     fn declaration(&self) -> Result<Statement> {
-        let res = if self.match_(&[TokenType::Fn]) {
+        let res = if self.match_(&[TokenType::Struct]) {
+            self.struct_declaration()
+        } else if self.match_(&[TokenType::Fn]) {
             self.function_declaration(FunctionKind::Function)
         } else if self.match_(&[TokenType::Let]) {
             self.let_declaration()
@@ -120,6 +124,37 @@ impl<'a> Parser<'a> {
             self.synchronize();
             println!("error and synchronize: TODO fix message: {:?}", err);
             err
+        })
+    }
+
+    fn struct_declaration(&self) -> Result<Statement> {
+        let name = self.consume_expected_token(
+            &TokenType::Identifier(Identifier::any()),
+            "Expect struct name.",
+        )?;
+
+        self.consume_expected_token(&TokenType::LeftBrace, "Expect '{' before struct body.")?;
+
+        let mut fields = Vec::new();
+
+        while !self.check(&TokenType::RightBrace) {
+            let field = Identifier::new(
+                self.consume_expected_token(
+                    &TokenType::Identifier(Identifier::any()),
+                    "Expect parameter name.",
+                )?
+                .lexeme(),
+            );
+            fields.push(field);
+            if !self.match_(&[TokenType::Comma]) || self.is_at_end() {
+                break;
+            }
+        }
+        self.consume_expected_token(&TokenType::RightBrace, "Expect '}' after struct body.")?;
+
+        Ok(Statement::Struct {
+            name: Identifier::new(name.lexeme()),
+            fields,
         })
     }
 
@@ -135,7 +170,7 @@ impl<'a> Parser<'a> {
         )?;
 
         let mut parameters = Vec::new();
-        // if we don't immediately see the right parent it means
+        // if we don't immediately see the right paren it means
         // that there are parameters
         if !self.check(&TokenType::RightParen) {
             loop {
@@ -146,7 +181,7 @@ impl<'a> Parser<'a> {
                     )?
                     .lexeme(),
                 ));
-                if !self.match_(&[TokenType::Comma]) {
+                if !self.match_(&[TokenType::Comma]) || self.is_at_end() {
                     break;
                 }
             }
@@ -184,6 +219,7 @@ impl<'a> Parser<'a> {
 
         self.consume_expected_token(&TokenType::Equal, "Expect `=` sign.")?;
         let initializer = self.expression()?;
+        // TODO
         self.consume_expected_token(
             &TokenType::Semicolon,
             "Expect ';' after variable declaration.",
@@ -230,7 +266,7 @@ impl<'a> Parser<'a> {
 
     fn print_statement(&self) -> Result<Statement> {
         let expr = self.expression()?;
-        self.consume_expected_token(&TokenType::Semicolon, "Exprect ';' after value")?;
+        self.consume_expected_token(&TokenType::Semicolon, "Expect ';' after value")?;
         Ok(Statement::Print(expr))
     }
 
@@ -271,7 +307,7 @@ impl<'a> Parser<'a> {
 
     fn expression_statement(&self) -> Result<Statement> {
         let expr = self.expression()?;
-        self.consume_expected_token(&TokenType::Semicolon, "Exprect ';' after expression")?;
+        self.consume_expected_token(&TokenType::Semicolon, "Expect ';' after expression")?;
         Ok(Statement::Expression(expr))
     }
 
@@ -413,17 +449,71 @@ impl<'a> Parser<'a> {
                 right: Box::new(right),
             })
         } else {
-            self.function_call()
+            // at this point, we are either calling a function or initializing
+            // a struct (or a primary expression).
+
+            let expr = self.primary()?;
+            if self.check(&TokenType::LeftBrace) {
+                // a struct initialization
+                self.struct_init(expr)
+            } else {
+                // go down to function call
+                self.function_call(expr)
+            }
         }
     }
 
-    fn function_call(&self) -> Result<Expression> {
-        let mut expr = self.primary()?;
+    fn struct_init(&self, struct_type: Expression) -> Result<Expression> {
+        self.consume_expected_token(
+            &TokenType::LeftBrace,
+            "Expect '{' before struct initialization.",
+        )?;
+        let mut fields = Vec::new();
+        while !self.check(&TokenType::RightBrace) {
+            let assignment = self.assignment()?;
 
+            if let Expression::Assign { id, value } = assignment {
+                fields.push((id, *value));
+            } else {
+                unreachable!()
+            }
+
+            self.consume_expected_token(
+                &TokenType::Comma,
+                "Expect ',' after each field during struct initialization.",
+            )?;
+        }
+        self.consume_expected_token(
+            &TokenType::RightBrace,
+            "Expect '}' after struct initialization.",
+        )?;
+        Ok(Expression::StructInit {
+            struct_type: Box::new(struct_type),
+            fields,
+        })
+    }
+
+    fn function_call(&self, mut expr: Expression) -> Result<Expression> {
         // after parsing the expression, we are seeing an open paren,
         // this means we are calling a function, we thus call `finish_call`
-        while self.match_(&[TokenType::LeftParen]) {
-            expr = self.finish_call(expr)?;
+        loop {
+            if self.match_(&[TokenType::LeftParen]) {
+                // the expr here is the function callee
+                expr = self.finish_call(expr)?;
+            } else if self.match_(&[TokenType::Dot]) {
+                // here we are accessing a field within a struct
+                let field_name = self.consume_expected_token(
+                    &TokenType::Identifier(Identifier::any()),
+                    "Expect property after '.'.",
+                )?;
+
+                expr = Expression::StructAccessor {
+                    instance_name: Box::new(expr),
+                    field_name: Identifier::new(field_name.lexeme()),
+                }
+            } else {
+                break;
+            }
         }
         Ok(expr)
     }

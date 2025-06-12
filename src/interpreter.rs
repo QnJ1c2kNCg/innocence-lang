@@ -3,7 +3,7 @@
 /// produced by the [`Parser`] in executes/evaluates them one by one. The [`Interpreter`]
 /// implements both [`StatementVisitor`] and [`ExpressionVisitor`], this is where the logic
 /// for handling the different types of nodes of the AST are.
-use std::{fmt::Display, iter::zip, rc::Rc};
+use std::{collections::HashMap, fmt::Display, iter::zip, rc::Rc};
 
 use crate::{
     environment::Environment,
@@ -31,6 +31,7 @@ pub(crate) struct Interpreter {
 }
 
 /// Represents a value, this is what an [`Expression`] evaluates to.
+// TODO: Break this type up
 #[derive(Clone, Debug)]
 pub(crate) enum Value {
     /// Unit type that represents nothing
@@ -47,6 +48,14 @@ pub(crate) enum Value {
         parameters: Vec<Identifier>,
         body: Box<Statement>,
     },
+    StructType {
+        name: Identifier,
+        fields: Vec<Identifier>,
+    },
+    StructInstance {
+        struct_type: Identifier,
+        fields: HashMap<Identifier, Value>,
+    },
 }
 
 impl Display for Value {
@@ -61,6 +70,15 @@ impl Display for Value {
                 parameters: _,
                 body: _,
             } => write!(f, "<func> {:?}", name),
+            Value::StructType { name, fields: _ } => write!(f, "<struct_type> {:?}", name),
+            Value::StructInstance {
+                struct_type,
+                fields,
+            } => write!(
+                f,
+                "<struct_instance> of type {:?}, fields: {:?}",
+                struct_type, fields
+            ),
         }
     }
 }
@@ -415,7 +433,7 @@ impl ExpressionVisitor<Result<Value>> for Interpreter {
         match expr {
             Expression::FunctionCall {
                 callee,
-                paren,
+                paren: _,
                 arguments,
             } => {
                 let callee = self.evaluate(callee, environment)?;
@@ -425,6 +443,63 @@ impl ExpressionVisitor<Result<Value>> for Interpreter {
                     .collect::<Result<Vec<Value>>>()?;
 
                 self.make_function_call(callee, arguments, environment)
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn visit_struct_initialization(
+        &mut self,
+        expr: &Expression,
+        environment: &Rc<Environment>,
+    ) -> Result<Value> {
+        match expr {
+            Expression::StructInit {
+                struct_type,
+                fields,
+            } => {
+                let struct_type = if let Value::StructType { name, fields: _ } =
+                    self.evaluate(struct_type, environment)?
+                {
+                    name
+                } else {
+                    unreachable!()
+                };
+
+                let mut evaluated_fields = HashMap::with_capacity(fields.len());
+                for (id, expr) in fields {
+                    let evaluated_field = self.evaluate(expr, environment)?;
+                    evaluated_fields.insert(id.clone(), evaluated_field);
+                }
+
+                Ok(Value::StructInstance {
+                    struct_type,
+                    fields: evaluated_fields,
+                })
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn visit_struct_accessor(
+        &mut self,
+        expr: &Expression,
+        environment: &Rc<Environment>,
+    ) -> Result<Value> {
+        match expr {
+            Expression::StructAccessor {
+                instance_name,
+                field_name,
+            } => {
+                if let Value::StructInstance {
+                    struct_type: _,
+                    fields,
+                } = self.evaluate(instance_name, environment)?
+                {
+                    Ok(fields.get(field_name).unwrap().clone())
+                } else {
+                    unreachable!()
+                }
             }
             _ => unreachable!(),
         }
@@ -458,6 +533,22 @@ impl StatementVisitor<Result<()>> for Interpreter {
             Statement::Let { name, initializer } => {
                 let value = self.evaluate(initializer, environment)?;
                 environment.define(name.clone(), value);
+                Ok(())
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn visit_struct_stmt(&mut self, stmt: &Statement, environment: &Rc<Environment>) -> Result<()> {
+        match stmt.clone() {
+            Statement::Struct { name, fields } => {
+                // TODO: Do I need two different types here? I'm
+                // converting the statement to a value.
+                let value = Value::StructType {
+                    name: name.clone(),
+                    fields,
+                };
+                environment.define(name, value);
                 Ok(())
             }
             _ => unreachable!(),

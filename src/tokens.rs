@@ -160,7 +160,7 @@ impl Token {
             TokenType::LeftBrace => "{".to_owned(),
             TokenType::RightBrace => "}".to_owned(),
             TokenType::Comma => ",".to_owned(),
-            TokenType::Dot => todo!(),
+            TokenType::Dot => ".".to_owned(),
             TokenType::Minus => "-".to_owned(),
             TokenType::Plus => "+".to_owned(),
             TokenType::Semicolon => ";".to_owned(),
