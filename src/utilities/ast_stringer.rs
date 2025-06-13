@@ -142,6 +142,22 @@ impl ExpressionVisitor<String> for AstStringer {
             _ => unreachable!(),
         }
     }
+
+    fn visit_struct_setter(&mut self, expr: &Expression, _: &Rc<Environment>) -> String {
+        match expr {
+            Expression::StructSetter {
+                instance_name,
+                field_name,
+                value,
+            } => {
+                format!(
+                    "struct_setting: {:?}, {:?}, {:?}",
+                    instance_name, field_name, value
+                )
+            }
+            _ => unreachable!(),
+        }
+    }
 }
 
 #[cfg(test)]

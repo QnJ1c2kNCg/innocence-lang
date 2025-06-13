@@ -25,7 +25,7 @@
 ///  whileStmt      → "while" expression "{" statement "}" ;
 ///  block          → "{" declaration* "}" ;
 ///  expression     → assignment ;
-///  assignment     → IDENTIFIER "=" assignment | logic_or ;
+///  assignment     → (call "." )? IDENTIFIER "=" assignment | logic_or ;
 ///  logic_or       → logic_and ( "or" logic_and )* ;
 ///  logic_and      → equality ( "and" equality )* ;
 ///  equality       → comparison ( ( "!=" | "==" ) comparison )* ;
@@ -322,15 +322,24 @@ impl<'a> Parser<'a> {
         if self.match_(&[TokenType::Equal]) {
             let value = self.assignment()?;
 
-            return if let Expression::Variable { id } = expr {
-                Ok(Expression::Assign {
+            return match expr {
+                Expression::Variable { id } => Ok(Expression::Assign {
                     id,
                     value: Box::new(value),
-                })
-            } else {
-                Err(ParserError::DoesNotRequireSynchronization(
+                }),
+                // we parsed `expr` as a struct accessor, however we how found an equal sign (`=`)
+                // this means that it's actually a struct setter, we thus convert it
+                Expression::StructAccessor {
+                    instance_name,
+                    field_name,
+                } => Ok(Expression::StructSetter {
+                    instance_name,
+                    field_name,
+                    value: Box::new(value),
+                }),
+                _ => Err(ParserError::DoesNotRequireSynchronization(
                     "Invalid assignment target.".to_owned(),
-                ))
+                )),
             };
         }
 

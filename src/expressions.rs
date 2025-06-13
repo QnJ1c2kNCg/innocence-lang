@@ -54,6 +54,12 @@ pub(crate) enum Expression {
         instance_name: Box<Expression>,
         field_name: Identifier,
     },
+    /// Setter for a struct field
+    StructSetter {
+        instance_name: Box<Expression>,
+        field_name: Identifier,
+        value: Box<Expression>,
+    },
     /// A function call, the `callee` will be the [`Identifier`] for the function,
     /// and arguments are what is inside the parenthesis.
     FunctionCall {
@@ -81,6 +87,7 @@ pub(crate) trait ExpressionVisitor<T> {
         environment: &Rc<Environment>,
     ) -> T;
     fn visit_struct_accessor(&mut self, expr: &Expression, environment: &Rc<Environment>) -> T;
+    fn visit_struct_setter(&mut self, expr: &Expression, environment: &Rc<Environment>) -> T;
 }
 
 impl Expression {
@@ -103,6 +110,7 @@ impl Expression {
             Expression::FunctionCall { .. } => visitor.visit_function_call(self, environment),
             Expression::StructInit { .. } => visitor.visit_struct_initialization(self, environment),
             Expression::StructAccessor { .. } => visitor.visit_struct_accessor(self, environment),
+            Expression::StructSetter { .. } => visitor.visit_struct_setter(self, environment),
         }
     }
 }

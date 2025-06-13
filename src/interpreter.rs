@@ -3,7 +3,13 @@
 /// produced by the [`Parser`] in executes/evaluates them one by one. The [`Interpreter`]
 /// implements both [`StatementVisitor`] and [`ExpressionVisitor`], this is where the logic
 /// for handling the different types of nodes of the AST are.
-use std::{collections::HashMap, fmt::Display, iter::zip, rc::Rc};
+use std::{
+    collections::HashMap,
+    fmt::Display,
+    iter::zip,
+    rc::Rc,
+    sync::{Arc, Mutex},
+};
 
 use crate::{
     environment::Environment,
@@ -54,7 +60,7 @@ pub(crate) enum Value {
     },
     StructInstance {
         struct_type: Identifier,
-        fields: HashMap<Identifier, Value>,
+        fields: Arc<Mutex<HashMap<Identifier, Value>>>,
     },
 }
 
@@ -474,7 +480,7 @@ impl ExpressionVisitor<Result<Value>> for Interpreter {
 
                 Ok(Value::StructInstance {
                     struct_type,
-                    fields: evaluated_fields,
+                    fields: Arc::new(Mutex::new(evaluated_fields)),
                 })
             }
             _ => unreachable!(),
@@ -496,7 +502,36 @@ impl ExpressionVisitor<Result<Value>> for Interpreter {
                     fields,
                 } = self.evaluate(instance_name, environment)?
                 {
+                    let fields = fields.lock().unwrap();
                     Ok(fields.get(field_name).unwrap().clone())
+                } else {
+                    unreachable!()
+                }
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn visit_struct_setter(
+        &mut self,
+        expr: &Expression,
+        environment: &Rc<Environment>,
+    ) -> Result<Value> {
+        match expr {
+            Expression::StructSetter {
+                instance_name,
+                field_name,
+                value,
+            } => {
+                if let Value::StructInstance {
+                    struct_type: _,
+                    fields,
+                } = self.evaluate(instance_name, environment)?
+                {
+                    let mut fields = fields.lock().expect("lock poisoned");
+                    let evaluated_value = self.evaluate(value, environment)?;
+                    fields.insert(field_name.clone(), evaluated_value.clone());
+                    Ok(evaluated_value)
                 } else {
                     unreachable!()
                 }

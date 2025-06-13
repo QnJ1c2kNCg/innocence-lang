@@ -1,0 +1,25 @@
+struct Struct {
+    a,
+    b,
+}
+
+// print the type
+print Struct;
+
+let instance = Struct {
+    a = 3,
+    b = 4,
+};
+
+// print the instance
+print instance;
+// print the fields
+print instance.a;
+print instance.b;
+
+// modify and print the fields
+{
+    instance.a = 42;
+    print instance.a;
+}
+print instance.a;
