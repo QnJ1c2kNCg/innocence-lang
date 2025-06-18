@@ -1,4 +1,4 @@
-/// Entry point of the innocence interpreter.
+/// Entry point of the innocence interpreter, through the [`run_file`] and [`run_prompt`] functions.
 mod environment;
 mod expressions;
 mod interpreter;

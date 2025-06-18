@@ -1,4 +1,5 @@
-/// Entry point of the innocence interpreter.
+/// This crate produces the binary of the innocence interpreter.
+/// The implementation of the interpreter is in the [`innocence-lib`] crate.
 use std::{env, process};
 
 use innocence_lib::{run_file, run_prompt};
