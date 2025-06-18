@@ -115,7 +115,7 @@ mod tests {
             outer.get(&id_outer).unwrap(),
             Value::Number(42f64)
         ));
-        assert!(matches!(outer.get(&id_inner), None));
+        assert!(outer.get(&id_inner).is_none());
     }
 
     #[test]

@@ -651,7 +651,7 @@ impl StatementVisitor<Result<()>> for Interpreter {
         match stmt {
             Statement::Return { expr } => {
                 let value = match expr {
-                    Some(value) => self.evaluate(&value, environment)?,
+                    Some(value) => self.evaluate(value, environment)?,
                     None => Value::Null,
                 };
                 Err(InterpreterError::Return(value))
