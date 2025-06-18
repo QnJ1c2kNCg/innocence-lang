@@ -714,8 +714,8 @@ impl<'a> Parser<'a> {
 mod tests {
     use std::rc::Rc;
 
-    use crate::Scanner;
     use crate::environment::Environment;
+    use crate::scanner::Scanner;
     use crate::utilities::ast_stringer::AstStringer;
 
     use super::*;

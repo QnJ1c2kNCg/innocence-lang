@@ -663,7 +663,7 @@ impl StatementVisitor<Result<()>> for Interpreter {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Parser, Scanner};
+    use crate::{parser::Parser, scanner::Scanner};
 
     use super::*;
 
