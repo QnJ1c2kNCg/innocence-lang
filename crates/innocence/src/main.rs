@@ -1,18 +1,7 @@
 /// Entry point of the innocence interpreter.
-mod environment;
-mod expressions;
-mod interpreter;
-mod logger;
-mod parser;
-mod scanner;
-mod semantic_analysis;
-mod statements;
-mod tokens;
-mod utilities;
-
 use std::{env, process};
 
-use innocence_lang::{run_file, run_prompt};
+use innocence_lib::{run_file, run_prompt};
 
 fn main() -> Result<(), i32> {
     let args: Vec<String> = env::args().collect();

@@ -3,5 +3,12 @@
 version = 4
 
 [[package]]
-name = "innocence-lang"
+name = "innocence"
+version = "0.1.0"
+dependencies = [
+ "innocence-lib",
+]
+
+[[package]]
+name = "innocence-lib"
 version = "0.1.0"
