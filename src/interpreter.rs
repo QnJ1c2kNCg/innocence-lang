@@ -464,14 +464,6 @@ impl ExpressionVisitor<Result<Value>> for Interpreter {
                 struct_type,
                 fields,
             } => {
-                let struct_type = if let Value::StructType { name, fields: _ } =
-                    self.evaluate(struct_type, environment)?
-                {
-                    name
-                } else {
-                    unreachable!()
-                };
-
                 let mut evaluated_fields = HashMap::with_capacity(fields.len());
                 for (id, expr) in fields {
                     let evaluated_field = self.evaluate(expr, environment)?;
@@ -479,7 +471,7 @@ impl ExpressionVisitor<Result<Value>> for Interpreter {
                 }
 
                 Ok(Value::StructInstance {
-                    struct_type,
+                    struct_type: struct_type.clone(),
                     fields: Arc::new(Mutex::new(evaluated_fields)),
                 })
             }

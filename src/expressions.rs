@@ -46,7 +46,7 @@ pub(crate) enum Expression {
     },
     /// Initialization of a struct, during a variable declaration
     StructInit {
-        struct_type: Box<Expression>,
+        struct_type: Identifier,
         fields: Vec<(Identifier, Expression)>,
     },
     /// Accessor for a struct field

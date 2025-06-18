@@ -218,8 +218,11 @@ impl<'a> Parser<'a> {
         };
 
         self.consume_expected_token(&TokenType::Equal, "Expect `=` sign.")?;
-        let initializer = self.expression()?;
-        // TODO
+        let initializer = if self.check_next(&TokenType::LeftBrace) {
+            self.struct_init()?
+        } else {
+            self.expression()?
+        };
         self.consume_expected_token(
             &TokenType::Semicolon,
             "Expect ';' after variable declaration.",
@@ -462,17 +465,20 @@ impl<'a> Parser<'a> {
             // a struct (or a primary expression).
 
             let expr = self.primary()?;
-            if self.check(&TokenType::LeftBrace) {
-                // a struct initialization
-                self.struct_init(expr)
-            } else {
-                // go down to function call
-                self.function_call(expr)
-            }
+            self.function_call(expr)
         }
     }
 
-    fn struct_init(&self, struct_type: Expression) -> Result<Expression> {
+    fn struct_init(&self) -> Result<Expression> {
+        let struct_type = self.consume_expected_token(
+            &TokenType::Identifier(Identifier::any()),
+            "Expect struct type name.",
+        )?;
+
+        let struct_type = match &struct_type.token_type {
+            TokenType::Identifier(identifier) => identifier.clone(),
+            _ => unreachable!(),
+        };
         self.consume_expected_token(
             &TokenType::LeftBrace,
             "Expect '{' before struct initialization.",
@@ -497,7 +503,7 @@ impl<'a> Parser<'a> {
             "Expect '}' after struct initialization.",
         )?;
         Ok(Expression::StructInit {
-            struct_type: Box::new(struct_type),
+            struct_type,
             fields,
         })
     }
@@ -614,6 +620,14 @@ impl<'a> Parser<'a> {
         &self.current().token_type == token_type
     }
 
+    /// Same as [`check`], but looks at next instead of current index
+    fn check_next(&self, token_type: &TokenType) -> bool {
+        if self.is_at_end() {
+            return false;
+        }
+        &self.next().token_type == token_type
+    }
+
     /// Advance the parser and return the next [`Token`].
     fn advance(&self) -> &Token {
         if !self.is_at_end() {
@@ -637,6 +651,14 @@ impl<'a> Parser<'a> {
     fn previous(&self) -> &Token {
         self.tokens
             .get(self.current_index.load(Ordering::Relaxed) - 1)
+            .unwrap()
+    }
+
+    // Getter for the next [`Token`]
+    fn next(&self) -> &Token {
+        // TODO: Remove the panickness
+        self.tokens
+            .get(self.current_index.load(Ordering::Relaxed) + 1)
             .unwrap()
     }
 
