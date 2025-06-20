@@ -14,6 +14,7 @@ use std::{
 use crate::{
     environment::Environment,
     expressions::{Expression, ExpressionVisitor},
+    prelude::{self, NativeFunction},
     statements::{Statement, StatementVisitor},
     tokens::{Identifier, TokenType},
 };
@@ -54,14 +55,27 @@ pub(crate) enum Value {
         parameters: Vec<Identifier>,
         body: Box<Statement>,
     },
+    /// A function that belongs to innocence's prelude. Those functions
+    /// are provided by the interpreter and aren't user defined.
+    PreludeFunction {
+        inner: NativeFunction,
+    },
+    /// Define a new user defined struct type.
     StructType {
         name: Identifier,
         fields: Vec<Identifier>,
     },
+    /// The instantiation of a struct, this is used for struct initialization.
     StructInstance {
         struct_type: Identifier,
         fields: Arc<Mutex<HashMap<Identifier, Value>>>,
     },
+}
+
+impl From<NativeFunction> for Value {
+    fn from(value: NativeFunction) -> Self {
+        Self::PreludeFunction { inner: value }
+    }
 }
 
 impl Display for Value {
@@ -76,6 +90,7 @@ impl Display for Value {
                 parameters: _,
                 body: _,
             } => write!(f, "<func> {:?}", name),
+            Value::PreludeFunction { inner } => write!(f, "<native_function> {:?}", inner),
             Value::StructType { name, fields: _ } => write!(f, "<struct_type> {:?}", name),
             Value::StructInstance {
                 struct_type,
@@ -162,8 +177,11 @@ impl Value {
 
 impl Interpreter {
     pub(crate) fn new() -> Self {
+        let global_environment = Rc::new(Environment::new_global());
+        prelude::populate_environment(&global_environment);
+
         Self {
-            root_environment: Rc::new(Environment::new_global()),
+            root_environment: global_environment,
         }
     }
 
@@ -241,6 +259,13 @@ impl Interpreter {
                     _ => unreachable!(),
                 }
             }
+            Value::PreludeFunction { inner } => match inner {
+                NativeFunction::StringVoid { function } => {
+                    assert_eq!(arguments.len(), 1);
+                    function(format!("{}", arguments[0].clone()));
+                    Ok(Value::Null)
+                }
+            },
             _ => unreachable!(),
         }
     }
@@ -541,16 +566,6 @@ impl StatementVisitor<Result<()>> for Interpreter {
     ) -> Result<()> {
         match stmt {
             Statement::Expression(expression) => self.evaluate(expression, environment).map(|_| ()),
-            _ => unreachable!(),
-        }
-    }
-
-    fn visit_print_stmt(&mut self, stmt: &Statement, environment: &Rc<Environment>) -> Result<()> {
-        match stmt {
-            Statement::Print(expression) => {
-                let evaluated = self.evaluate(expression, environment)?;
-                Ok(println!("{}", evaluated))
-            }
             _ => unreachable!(),
         }
     }

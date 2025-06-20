@@ -234,8 +234,6 @@ impl<'a> Parser<'a> {
     fn statement(&self) -> Result<Statement> {
         if self.match_(&[TokenType::If]) {
             self.if_statement()
-        } else if self.match_(&[TokenType::Print]) {
-            self.print_statement()
         } else if self.match_(&[TokenType::Return]) {
             self.return_statement()
         } else if self.match_(&[TokenType::While]) {
@@ -265,12 +263,6 @@ impl<'a> Parser<'a> {
             if_branch,
             else_branch,
         })
-    }
-
-    fn print_statement(&self) -> Result<Statement> {
-        let expr = self.expression()?;
-        self.consume_expected_token(&TokenType::Semicolon, "Expect ';' after value")?;
-        Ok(Statement::Print(expr))
     }
 
     fn return_statement(&self) -> Result<Statement> {
@@ -700,7 +692,6 @@ impl<'a> Parser<'a> {
                 | TokenType::For
                 | TokenType::If
                 | TokenType::While
-                | TokenType::Print
                 | TokenType::Return => return,
                 _ => {
                     self.advance();

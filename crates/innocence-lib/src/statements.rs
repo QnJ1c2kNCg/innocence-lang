@@ -10,9 +10,6 @@ pub(crate) enum Statement {
     /// This represent an [`Expression`] where a statement is expected.
     /// For example, a function call that ends with a `;`.
     Expression(Expression),
-    /// Standard print to console
-    // TODO: Move to standard library function
-    Print(Expression),
     /// Binding a new variable. Variables in innocence needs to be
     /// explicitly initialized.
     Let {
@@ -53,7 +50,6 @@ pub(crate) enum Statement {
 /// the [`Interpreter`].
 pub(crate) trait StatementVisitor<T> {
     fn visit_expression_stmt(&mut self, stmt: &Statement, environment: &Rc<Environment>) -> T;
-    fn visit_print_stmt(&mut self, stmt: &Statement, environment: &Rc<Environment>) -> T;
     fn visit_let_stmt(&mut self, stmt: &Statement, environment: &Rc<Environment>) -> T;
     fn visit_struct_stmt(&mut self, stmt: &Statement, environment: &Rc<Environment>) -> T;
     fn visit_function_stmt(&mut self, stmt: &Statement, environment: &Rc<Environment>) -> T;
@@ -74,7 +70,6 @@ impl Statement {
     ) -> T {
         match self {
             Statement::Expression(_) => visitor.visit_expression_stmt(self, environment),
-            Statement::Print(_) => visitor.visit_print_stmt(self, environment),
             Statement::Let { .. } => visitor.visit_let_stmt(self, environment),
             Statement::Struct { .. } => visitor.visit_struct_stmt(self, environment),
             Statement::Function { .. } => visitor.visit_function_stmt(self, environment),

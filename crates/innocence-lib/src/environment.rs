@@ -4,7 +4,7 @@ use std::{
     rc::Rc,
 };
 
-use crate::{interpreter::Value, tokens::Identifier};
+use crate::{interpreter::Value, prelude::NativeFunction, tokens::Identifier};
 
 #[derive(Debug)]
 pub(crate) enum EnvironmentError {
@@ -45,6 +45,18 @@ impl Environment {
     /// NOTE: For now this shadows previous definitions.
     pub(crate) fn define(&self, id: Identifier, value: Value) {
         self.values.borrow_mut().insert(id, value);
+    }
+
+    /// Use to define a native function. Those functions usually belong to the prelude
+    /// (functions provided by the interpreter).
+    pub(crate) fn define_native_function(&self, id: Identifier, native_fn: NativeFunction) {
+        assert!(
+            self.values
+                .borrow_mut()
+                .insert(id, native_fn.into())
+                .is_none(),
+            "Native function should be defined only once."
+        )
     }
 
     /// Assign an existing variable, a [`EnvironmentError::UndefinedVariable`] error

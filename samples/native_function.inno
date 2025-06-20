@@ -1,0 +1,2 @@
+// `print` was not defined by the user, it was pulled from the prelude
+print("foo");

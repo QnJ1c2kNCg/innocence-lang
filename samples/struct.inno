@@ -4,7 +4,7 @@ struct Struct {
 }
 
 // print the type
-print Struct;
+print(Struct);
 
 let instance = Struct {
     a = 3,
@@ -12,14 +12,14 @@ let instance = Struct {
 };
 
 // print the instance
-print instance;
+print(instance);
 // print the fields
-print instance.a;
-print instance.b;
+print(instance.a);
+print(instance.b);
 
 // modify and print the fields
 {
     instance.a = 42;
-    print instance.a;
+    print(instance.a);
 }
-print instance.a;
+print(instance.a);
