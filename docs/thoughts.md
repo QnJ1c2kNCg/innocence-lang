@@ -22,3 +22,4 @@ This document will try to organize my thoughts around innocence. At this stage, 
 * No multi-threading
 * Nothing implicit
 * Do we want nested functions? no
+* No syntactic sugar, each semantic operation maps to a single syntactic unit
