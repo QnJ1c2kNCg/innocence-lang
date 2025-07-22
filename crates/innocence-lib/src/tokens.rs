@@ -3,7 +3,7 @@ use std::mem::discriminant;
 use crate::scanner::ScannerError;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub(crate) struct Identifier(String);
+pub(crate) struct Identifier(pub(crate) String);
 
 impl Identifier {
     pub(crate) fn new(id: String) -> Self {
@@ -41,6 +41,7 @@ pub(crate) enum TokenType {
     Dot,
     Minus,
     Plus,
+    Colon,
     Semicolon,
     Slash,
     Star,
@@ -162,6 +163,7 @@ impl Token {
             TokenType::Minus => "-".to_owned(),
             TokenType::Plus => "+".to_owned(),
             TokenType::Semicolon => ";".to_owned(),
+            TokenType::Colon => ":".to_owned(),
             TokenType::Slash => "/".to_owned(),
             TokenType::Star => "*".to_owned(),
             TokenType::Bang => "!".to_owned(),

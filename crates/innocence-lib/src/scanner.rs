@@ -70,6 +70,7 @@ impl Scanner {
             '.' => Some(Token::new(TokenType::Dot, self.scan_location)),
             '-' => Some(Token::new(TokenType::Minus, self.scan_location)),
             '+' => Some(Token::new(TokenType::Plus, self.scan_location)),
+            ':' => Some(Token::new(TokenType::Colon, self.scan_location)),
             ';' => Some(Token::new(TokenType::Semicolon, self.scan_location)),
             '*' => Some(Token::new(TokenType::Star, self.scan_location)),
             '!' => {
@@ -234,7 +235,7 @@ mod tests {
     fn smoke_test() {
         let source = r#"// this is a comment
             (( )){} // grouping stuff
-            .,;!*+-/=<> <= >= == // operators
+            .,;:!*+-/=<> <= >= == // operators
             "string literal" "another one"
             123 4.5 67.89 10.0
             fn struct if else for while
@@ -254,6 +255,7 @@ mod tests {
             Token::new(TokenType::Dot, 3.into()),
             Token::new(TokenType::Comma, 3.into()),
             Token::new(TokenType::Semicolon, 3.into()),
+            Token::new(TokenType::Colon, 3.into()),
             Token::new(TokenType::Bang, 3.into()),
             Token::new(TokenType::Star, 3.into()),
             Token::new(TokenType::Plus, 3.into()),

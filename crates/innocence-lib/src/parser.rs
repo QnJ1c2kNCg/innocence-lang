@@ -45,6 +45,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use crate::{
     expressions::Expression,
     logger::report_error,
+    semantic_analysis::type_checker::TypeInfo,
     statements::Statement,
     tokens::{Identifier, Token, TokenType},
 };
@@ -217,6 +218,24 @@ impl<'a> Parser<'a> {
             _ => unreachable!(),
         };
 
+        // Check for the optional type annotation
+        let type_info: Option<TypeInfo> = if self.check(&TokenType::Colon) {
+            self.advance();
+            let type_identifier = self.consume_expected_token(
+                &TokenType::Identifier(Identifier::any()),
+                "Expect type annotation after ':'.",
+            )?;
+
+            let type_identifier = match &type_identifier.token_type {
+                TokenType::Identifier(identifier) => identifier.clone(),
+                _ => unreachable!(),
+            };
+
+            Some(type_identifier.into())
+        } else {
+            None
+        };
+
         self.consume_expected_token(&TokenType::Equal, "Expect `=` sign.")?;
         let initializer = if self.check_next(&TokenType::LeftBrace) {
             self.struct_init()?
@@ -228,7 +247,11 @@ impl<'a> Parser<'a> {
             "Expect ';' after variable declaration.",
         )?;
 
-        Ok(Statement::Let { name, initializer })
+        Ok(Statement::Let {
+            name,
+            type_info,
+            initializer,
+        })
     }
 
     fn statement(&self) -> Result<Statement> {

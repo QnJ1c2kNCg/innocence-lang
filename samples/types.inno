@@ -1,0 +1,5 @@
+let foo = 42;
+let bar: Number = 13.3;
+
+let out: Bool = foo == bar;
+print(out);

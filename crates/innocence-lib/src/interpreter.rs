@@ -572,7 +572,11 @@ impl StatementVisitor<Result<()>> for Interpreter {
 
     fn visit_let_stmt(&mut self, stmt: &Statement, environment: &Rc<Environment>) -> Result<()> {
         match stmt {
-            Statement::Let { name, initializer } => {
+            Statement::Let {
+                name,
+                type_info: _,
+                initializer,
+            } => {
                 let value = self.evaluate(initializer, environment)?;
                 environment.define(name.clone(), value);
                 Ok(())

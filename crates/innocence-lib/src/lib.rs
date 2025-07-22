@@ -17,6 +17,8 @@ use interpreter::Interpreter;
 use parser::Parser;
 use scanner::Scanner;
 
+use crate::semantic_analysis::run_semantic_analysis;
+
 pub fn run_file(file_path: &str) -> Result<(), i32> {
     let source = std::fs::read_to_string(file_path)
         .unwrap_or_else(|_| panic!("Failed to read {}", file_path));
@@ -41,16 +43,22 @@ pub fn run_prompt() -> Result<(), i32> {
 fn run(interpreter: &mut Interpreter, source: String) -> Result<(), i32> {
     let mut scanner = Scanner::new(source);
     let tokens = scanner.scan_tokens();
+
     let parser = Parser::new(tokens);
-    let statements = match parser.parse() {
-        Ok(stmt) => stmt,
-        Err(err) => {
-            eprintln!("Parser error: {:?}", err);
-            return Err(1);
-        }
-    };
+    let statements = parser.parse().map_err(|err| {
+        eprintln!("Parser error: {:?}", err);
+        1
+    })?;
+
+    //run_semantic_analysis(&statements).map_err(|err| {
+    //eprintln!("{}", err);
+    //1
+    //})?;
+
     interpreter.interpret(&statements).map_err(|err| {
         eprintln!("Interpreter error: {:?}", err);
         1
-    })
+    })?;
+
+    Ok(())
 }

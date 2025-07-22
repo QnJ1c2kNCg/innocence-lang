@@ -1,6 +1,9 @@
 use std::rc::Rc;
 
-use crate::{environment::Environment, expressions::Expression, tokens::Identifier};
+use crate::{
+    environment::Environment, expressions::Expression, semantic_analysis::type_checker::TypeInfo,
+    tokens::Identifier,
+};
 
 /// All types of supported statements for the innocence language.
 /// Usually statements do not evaluate to a value, but have side effects
@@ -11,9 +14,11 @@ pub(crate) enum Statement {
     /// For example, a function call that ends with a `;`.
     Expression(Expression),
     /// Binding a new variable. Variables in innocence needs to be
-    /// explicitly initialized.
+    /// explicitly initialized. Type information can optionally be added.
+    /// If type information is missing, the interpreter will try to infer it.
     Let {
         name: Identifier,
+        type_info: Option<TypeInfo>,
         initializer: Expression,
     },
     /// Struct declaration.
