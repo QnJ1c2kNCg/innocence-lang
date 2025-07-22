@@ -11,15 +11,12 @@ let instance = Struct {
     b = 4,
 };
 
-// print the instance
-print(instance);
-// print the fields
-print(instance.a);
-print(instance.b);
+assert(instance.a == 3);
+assert(instance.b == 4);
 
-// modify and print the fields
+// modify and validate the fields
 {
     instance.a = 42;
-    print(instance.a);
+    assert(instance.a == 42);
 }
-print(instance.a);
+assert(instance.a == 42);

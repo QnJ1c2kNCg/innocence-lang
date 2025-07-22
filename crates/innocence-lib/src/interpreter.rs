@@ -265,6 +265,11 @@ impl Interpreter {
                     function(format!("{}", arguments[0].clone()));
                     Ok(Value::Null)
                 }
+                NativeFunction::BoolVoid { function } => {
+                    assert_eq!(arguments.len(), 1);
+                    function(arguments[0].unwrap_bool()?);
+                    Ok(Value::Null)
+                }
             },
             _ => unreachable!(),
         }
