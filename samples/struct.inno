@@ -1,6 +1,6 @@
 struct Struct {
-    a,
-    b,
+    a: Number,
+    b: Number,
 }
 
 // print the type

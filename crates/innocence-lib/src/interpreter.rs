@@ -15,7 +15,7 @@ use crate::{
     environment::Environment,
     expressions::{Expression, ExpressionVisitor},
     prelude::{self, NativeFunction},
-    statements::{Statement, StatementVisitor},
+    statements::{Parameter, Statement, StatementVisitor},
     tokens::{Identifier, TokenType},
 };
 
@@ -52,7 +52,7 @@ pub(crate) enum Value {
     // Also, this is a copy of the Statement::Function...
     Function {
         name: Identifier,
-        parameters: Vec<Identifier>,
+        parameters: Vec<Parameter>,
         body: Box<Statement>,
     },
     /// A function that belongs to innocence's prelude. Those functions
@@ -63,7 +63,7 @@ pub(crate) enum Value {
     /// Define a new user defined struct type.
     StructType {
         name: Identifier,
-        fields: Vec<Identifier>,
+        fields: Vec<Parameter>,
     },
     /// The instantiation of a struct, this is used for struct initialization.
     StructInstance {
@@ -247,7 +247,7 @@ impl Interpreter {
             } => {
                 assert_eq!(arguments.len(), parameters.len());
                 for (parameter, argument) in zip(parameters, arguments) {
-                    function_env.define(parameter, argument);
+                    function_env.define(parameter.id, argument);
                 }
                 match &*body {
                     Statement::Block(statements) => {
@@ -615,6 +615,7 @@ impl StatementVisitor<Result<()>> for Interpreter {
             Statement::Function {
                 name,
                 parameters,
+                return_type_info: _,
                 body,
             } => {
                 // TODO: Do I need two different types here? I'm

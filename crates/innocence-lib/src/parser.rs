@@ -14,9 +14,9 @@
 ///  declaration    → structDecl | funDecl | letDecl | statement ;
 ///  structDecl     → "struct" IDENTIFIER "{" parameters* "}" ;
 ///  funDecl        → "fn" function ;
-///  function       → IDENTIFIER "(" parameters? ")" block ;
-///  parameters     → IDENTIFIER ( "," IDENTIFIER )* ;
-///  letDecl        → "let" IDENTIFIER "=" expression ";" ;
+///  function       → IDENTIFIER "(" parameters? ")" (-> IDENTIFIER)? block ;
+///  parameters     → IDENTIFIER ":" IDENTIFIER ( "," IDENTIFIER ":" IDENTIFIER )* ;
+///  letDecl        → "let" IDENTIFIER (":" IDENTIFIER)? "=" expression ";" ;
 ///  statement      → exprStmt | ifStmt | printStmt | returnStmt | whileStmt | block ;
 ///  exprStmt       → expression ";" ;
 ///  ifStmt         → "if" expression "{" statement "}" ( "else" "{" statement "}" )? ;
@@ -46,7 +46,7 @@ use crate::{
     expressions::Expression,
     logger::report_error,
     semantic_analysis::type_checker::TypeInfo,
-    statements::Statement,
+    statements::{Parameter, Statement},
     tokens::{Identifier, Token, TokenType},
 };
 
@@ -139,14 +139,19 @@ impl<'a> Parser<'a> {
         let mut fields = Vec::new();
 
         while !self.check(&TokenType::RightBrace) {
-            let field = Identifier::new(
+            let identifier = Identifier::new(
                 self.consume_expected_token(
                     &TokenType::Identifier(Identifier::any()),
                     "Expect parameter name.",
                 )?
                 .lexeme(),
             );
-            fields.push(field);
+            self.consume_expected_token(
+                &TokenType::Colon,
+                &format!("Expect ':' after parameter name ({}).", identifier),
+            )?;
+            let type_info = self.consume_type_info()?;
+            fields.push(Parameter::new(identifier, type_info));
             if !self.match_(&[TokenType::Comma]) || self.is_at_end() {
                 break;
             }
@@ -175,13 +180,19 @@ impl<'a> Parser<'a> {
         // that there are parameters
         if !self.check(&TokenType::RightParen) {
             loop {
-                parameters.push(Identifier::new(
+                let identifier = Identifier::new(
                     self.consume_expected_token(
                         &TokenType::Identifier(Identifier::any()),
                         "Expect parameter name.",
                     )?
                     .lexeme(),
-                ));
+                );
+                self.consume_expected_token(
+                    &TokenType::Colon,
+                    &format!("Expect ':' after parameter name ({}).", identifier),
+                )?;
+                let type_info = self.consume_type_info()?;
+                parameters.push(Parameter::new(identifier, type_info));
                 if !self.match_(&[TokenType::Comma]) || self.is_at_end() {
                     break;
                 }
@@ -193,6 +204,14 @@ impl<'a> Parser<'a> {
             "Expect closing parenthesis after parameters.",
         )?;
 
+        // Check if there is a return type annotation
+        let return_type_info: Option<TypeInfo> = if self.check(&TokenType::Arrow) {
+            self.advance();
+            Some(self.consume_type_info()?)
+        } else {
+            None
+        };
+
         self.consume_expected_token(
             &TokenType::LeftBrace,
             &format!("Expect '{{' before {} body.", kind),
@@ -203,6 +222,7 @@ impl<'a> Parser<'a> {
         Ok(Statement::Function {
             name: Identifier::new(name.lexeme()),
             parameters,
+            return_type_info,
             body,
         })
     }
@@ -221,17 +241,7 @@ impl<'a> Parser<'a> {
         // Check for the optional type annotation
         let type_info: Option<TypeInfo> = if self.check(&TokenType::Colon) {
             self.advance();
-            let type_identifier = self.consume_expected_token(
-                &TokenType::Identifier(Identifier::any()),
-                "Expect type annotation after ':'.",
-            )?;
-
-            let type_identifier = match &type_identifier.token_type {
-                TokenType::Identifier(identifier) => identifier.clone(),
-                _ => unreachable!(),
-            };
-
-            Some(type_identifier.into())
+            Some(self.consume_type_info()?)
         } else {
             None
         };
@@ -505,7 +515,10 @@ impl<'a> Parser<'a> {
             if let Expression::Assign { id, value } = assignment {
                 fields.push((id, *value));
             } else {
-                unreachable!()
+                return Err(ParserError::new_unrecoverable(
+                    self.current().clone(),
+                    "Expected an assignment using '='.".to_owned(),
+                ));
             }
 
             self.consume_expected_token(
@@ -610,7 +623,7 @@ impl<'a> Parser<'a> {
     }
 }
 
-/// Implements the [`Parser`] utily functions, these are the functions
+/// Implements the [`Parser`] utility functions, these are the functions
 /// needed to traverse the tokens but are not related to the grammar itself.
 impl<'a> Parser<'a> {
     /// Check if [`Token`] at `self.current_index` is of a type
@@ -721,6 +734,22 @@ impl<'a> Parser<'a> {
                 }
             }
         }
+    }
+
+    /// This function parses the identifier associated with the type annotation.
+    /// This function should be called after the colon (":") was parsed.
+    fn consume_type_info(&self) -> Result<TypeInfo> {
+        let type_identifier = self.consume_expected_token(
+            &TokenType::Identifier(Identifier::any()),
+            "Expect type annotation after ':'.",
+        )?;
+
+        let type_identifier = match &type_identifier.token_type {
+            TokenType::Identifier(identifier) => identifier.clone(),
+            _ => unreachable!(),
+        };
+
+        Ok(type_identifier.into())
     }
 }
 

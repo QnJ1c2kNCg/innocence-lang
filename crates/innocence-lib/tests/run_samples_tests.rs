@@ -6,6 +6,12 @@ use innocence_lib::run_file;
 fn run_samples() {
     let files = read_dir("../../samples").unwrap();
     for file in files {
-        assert!(run_file(file.unwrap().path().to_str().unwrap()).is_ok());
+        let file_path = file.unwrap().path();
+        let file_path = file_path.to_str().unwrap();
+        assert!(
+            run_file(file_path).is_ok(),
+            "Failed to run sample file `{}`",
+            file_path
+        );
     }
 }

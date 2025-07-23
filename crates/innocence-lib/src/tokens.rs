@@ -30,6 +30,12 @@ impl From<&str> for Identifier {
     }
 }
 
+impl std::fmt::Display for Identifier {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 #[derive(Clone, Debug)]
 pub(crate) enum TokenType {
     // Single char tokens
@@ -55,6 +61,7 @@ pub(crate) enum TokenType {
     GreaterEqual,
     Less,
     LessEqual,
+    Arrow,
 
     // Literals
     Identifier(Identifier),
@@ -174,6 +181,7 @@ impl Token {
             TokenType::GreaterEqual => ">=".to_owned(),
             TokenType::Less => "<".to_owned(),
             TokenType::LessEqual => "<=".to_owned(),
+            TokenType::Arrow => "->".to_owned(),
             TokenType::Identifier(id) => id.0.clone(),
             TokenType::String(str) => str.clone(),
             TokenType::Number(number) => number.to_string(),

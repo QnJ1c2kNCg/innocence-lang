@@ -5,6 +5,19 @@ use crate::{
     tokens::Identifier,
 };
 
+/// Represents the parameter of a function or struct declaration.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct Parameter {
+    pub(crate) id: Identifier,
+    pub(crate) type_info: TypeInfo,
+}
+
+impl Parameter {
+    pub(crate) fn new(id: Identifier, type_info: TypeInfo) -> Self {
+        Self { id, type_info }
+    }
+}
+
 /// All types of supported statements for the innocence language.
 /// Usually statements do not evaluate to a value, but have side effects
 /// (this rule is only loosely followed at the moment).
@@ -24,12 +37,14 @@ pub(crate) enum Statement {
     /// Struct declaration.
     Struct {
         name: Identifier,
-        fields: Vec<Identifier>,
+        fields: Vec<Parameter>,
     },
     /// Function declaration.
     Function {
         name: Identifier,
-        parameters: Vec<Identifier>,
+        parameters: Vec<Parameter>,
+        // Optional because of void returns
+        return_type_info: Option<TypeInfo>,
         body: Box<Statement>,
     },
     /// Represent a block (list) of statements, this could be a function body

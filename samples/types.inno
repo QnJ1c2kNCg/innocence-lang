@@ -2,4 +2,22 @@ let foo = 42;
 let bar: Number = 13.3;
 
 let out: Bool = foo == bar;
-print(out);
+assert(!out);
+
+struct Struct {
+    x: Number,
+    y: String,
+}
+
+let my_struct: Struct = Struct {
+    x = 42,
+    y = "bruno",
+};
+
+assert(my_struct.x == 42);
+
+my_struct.x = 13;
+assert(my_struct.x == 13);
+
+
+//fn add(x: Number, y: Number) -> Number { }

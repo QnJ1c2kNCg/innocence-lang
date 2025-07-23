@@ -68,7 +68,13 @@ impl Scanner {
             '}' => Some(Token::new(TokenType::RightBrace, self.scan_location)),
             ',' => Some(Token::new(TokenType::Comma, self.scan_location)),
             '.' => Some(Token::new(TokenType::Dot, self.scan_location)),
-            '-' => Some(Token::new(TokenType::Minus, self.scan_location)),
+            '-' => {
+                if self.conditional_advance('>')? {
+                    Some(Token::new(TokenType::Arrow, self.scan_location))
+                } else {
+                    Some(Token::new(TokenType::Minus, self.scan_location))
+                }
+            }
             '+' => Some(Token::new(TokenType::Plus, self.scan_location)),
             ':' => Some(Token::new(TokenType::Colon, self.scan_location)),
             ';' => Some(Token::new(TokenType::Semicolon, self.scan_location)),
